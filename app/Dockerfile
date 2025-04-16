@@ -10,10 +10,10 @@ RUN addgroup -g 10001 -S dockergrp && \
 # Stage 2: Final Image
 # Minimal scratch-based image containing only the essential components
 # =====================================
-FROM alpine:latest
+FROM scratch:latest
 
 # Security: Copy user information and switch to non-root user
-COPY --from=usersetup /etc/passwd /etc/passwd
+# COPY --from=usersetup /etc/passwd /etc/passwd
 USER dockeruser
 WORKDIR /app
 
