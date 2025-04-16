@@ -90,6 +90,9 @@ async-trait = "0.1.88"
 cloudflare = { version = "0.14.0", features = ["rustls-tls"], default-features = false }
 dirs = "5.0.1"
 shellexpand = "3.1.0"
+clap = { version = "4.5.4", features = ["derive"] }
+clap_complete = "4.5.1"
+clap_mangen = "0.2.15"
 
 [build-dependencies]
 build-info-build = "0.0.39"

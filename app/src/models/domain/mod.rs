@@ -45,4 +45,14 @@ impl Domain {
 
         Ok(domain)
     }
+
+    pub async fn get_all(state: &AppState) -> Result<Vec<Self>, sqlx::Error> {
+        let domains = sqlx::query_as::<_, Domain>(
+            "SELECT name, provider, external_id, ext_expiry_at, ext_registered_at, ext_auto_renew, metadata, created_at, updated_at FROM domains ORDER BY ext_expiry_at ASC"
+        )
+        .fetch_all(&state.database.pool)
+        .await?;
+
+        Ok(domains)
+    }
 }

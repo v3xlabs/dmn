@@ -28,7 +28,7 @@ pub struct AppStateInner {
 }
 
 impl AppStateInner {
-    pub async fn init() -> Self {
+    pub async fn init(optimistic: bool) -> Self {
         // Load configuration from environment variables
         let config_file = Figment::new();
 
@@ -55,8 +55,16 @@ impl AppStateInner {
 
         let cache = AppCache::new();
 
-        let porkbun = PorkbunService::try_init(&config_file).await;
-        let cloudflare = CloudflareService::try_init(&config_file).await;
+        let porkbun = if optimistic {
+            PorkbunService::try_init(&config_file).await
+        } else {
+            None
+        };
+        let cloudflare = if optimistic {
+            CloudflareService::try_init(&config_file).await
+        } else {
+            None
+        };
 
         Self {
             database,

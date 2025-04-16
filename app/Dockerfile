@@ -39,4 +39,4 @@ EXPOSE 3000
 # Application Startup
 # -----------------
 # Using exec form of CMD as there is no shell in scratch image
-CMD ["/app/dmn"]
+CMD ["/app/dmn", "server"]
