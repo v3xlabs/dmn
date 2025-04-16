@@ -1,7 +1,7 @@
 use async_std::prelude::FutureExt;
 use clap::{Parser, Subcommand};
 use figment::Figment;
-use modules::{cloudflare::CloudflareService, porkbun::PorkbunService, DomainService};
+use modules::{cloudflare::CloudflareService, porkbun::PorkbunService, whois::{self, whois}, DomainService};
 use state::{AppState, AppStateInner};
 use std::sync::Arc;
 
@@ -114,6 +114,8 @@ async fn main() -> Result<(), Error> {
         },
         Commands::Whois { domain } => {
             println!("Querying Whois for domain: {}", domain);
+            let result = whois(domain.clone()).await?;
+            println!("{}", result);
         }
     }
 

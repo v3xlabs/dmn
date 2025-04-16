@@ -158,7 +158,7 @@ mod tests {
     #[async_std::test]
     async fn test_get_domains() {
         dotenvy::dotenv().ok();
-        let state = Arc::new(AppStateInner::init().await);
+        let state = Arc::new(AppStateInner::init(true).await);
 
         let domains = state.porkbun.as_ref().unwrap().ingest_domains(&state).await.unwrap();
     }

@@ -93,6 +93,7 @@ shellexpand = "3.1.0"
 clap = { version = "4.5.4", features = ["derive"] }
 clap_complete = "4.5.1"
 clap_mangen = "0.2.15"
+whois = "0.1.0"
 
 [build-dependencies]
 build-info-build = "0.0.39"

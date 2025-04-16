@@ -1039,6 +1039,7 @@ dependencies = [
  "tracing-log",
  "tracing-opentelemetry",
  "tracing-subscriber",
+ "whois",
 ]
 
 [[package]]
@@ -3191,6 +3192,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
 
 [[package]]
+name = "rustc-serialize"
+version = "0.3.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe834bc780604f4674073badbad26d7219cadfb4a2275802db12cbae17498401"
+
+[[package]]
 name = "rustc_version"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4459,6 +4466,15 @@ checksum = "6994d13118ab492c3c80c1f81928718159254c53c472bf9ce36f8dae4add02a7"
 dependencies = [
  "redox_syscall",
  "wasite",
+]
+
+[[package]]
+name = "whois"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc5ffc65e9414c2072aa37cc4bb4cecb7e2bee7527373c8dbb40fc57ba2e11dc"
+dependencies = [
+ "rustc-serialize",
 ]
 
 [[package]]

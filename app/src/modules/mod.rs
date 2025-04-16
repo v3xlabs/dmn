@@ -2,6 +2,7 @@ use crate::{Error, state::AppState};
 
 pub mod cloudflare;
 pub mod porkbun;
+pub mod whois;
 
 pub trait DomainService {
     async fn ingest_domains(&self, state: &AppState) -> Result<(), Error>;
