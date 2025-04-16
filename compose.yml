@@ -8,6 +8,7 @@ services:
       JWT_SECRET: abc123
       PORKBUN_API_KEY: abc123
       CLOUDFLARE_API_KEY: abc123
+      RUST_LOG: info
     ports:
       - "3000:3000"
     depends_on:

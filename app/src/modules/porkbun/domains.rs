@@ -1,7 +1,9 @@
+use super::PorkbunService;
+use crate::{models::domain::Domain, modules::DomainService, state::AppState, util::serde_strint::string_or_int_to_option_i32};
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
-use super::PorkbunService;
-use crate::util::serde_strint::string_or_int_to_option_i32;
+use serde_json::json;
+use tracing::info;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,10 +47,18 @@ struct ListAllResponse {
 }
 
 /// Based on https://porkbun.com/api/json/v3/documentation#
-impl PorkbunService {
-    pub async fn get_domains(&self) -> Result<PorkbunDomainData, Error> {
-        let api_key = self.config.api_key.as_ref().ok_or_else(|| anyhow::anyhow!("Missing api_key"))?;
-        let secret_key = self.config.secret_key.as_ref().ok_or_else(|| anyhow::anyhow!("Missing secret_key"))?;
+impl DomainService for PorkbunService {
+    async fn ingest_domains(&self, state: &AppState) -> Result<(), Error> {
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Missing api_key"))?;
+        let secret_key = self
+            .config
+            .secret_key
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Missing secret_key"))?;
         let client = reqwest::Client::new();
         let req_body = ListAllRequest {
             apikey: api_key,
@@ -70,10 +80,36 @@ impl PorkbunService {
         if resp.status != "SUCCESS" {
             return Err(anyhow::anyhow!("Domain listAll error: {}", resp.status));
         }
-        Ok(PorkbunDomainData {
-            status: resp.status,
-            domains: resp.domains,
-        })
+
+        for domain in resp.domains {
+            let metadata = json!({
+                "status": domain.status,
+                "tld": domain.tld,
+                "create_date": domain.create_date,
+                "expire_date": domain.expire_date,
+                "security_lock": domain.security_lock,
+            });
+            let domain = Domain::new(
+                domain.domain.clone(),
+                "porkbun".to_string(),
+                domain.domain.clone(),
+                Some(metadata),
+                &state,
+            )
+            .await
+            .unwrap();
+
+            info!("Porkbun domain ingested: {:?}", domain);
+        }
+
+        info!("Completed porkbun");
+
+        Ok(())
+
+        // Ok(PorkbunDomainData {
+        //     status: resp.status,
+        //     domains: resp.domains,
+        // })
     }
 }
 
@@ -93,22 +129,6 @@ mod tests {
         dotenvy::dotenv().ok();
         let state = Arc::new(AppStateInner::init().await);
 
-        let domains = state.porkbun.as_ref().unwrap().get_domains().await.unwrap();
-
-        println!("{:?}", domains);
-
-        for domain in &domains.domains {
-            let metadata = json!({
-                "status": domain.status,
-                "tld": domain.tld,
-                "create_date": domain.create_date,
-                "expire_date": domain.expire_date,
-                "security_lock": domain.security_lock,
-            });
-            let domain = Domain::new(domain.domain.clone(), "porkbun".to_string(), domain.domain.clone(), Some(metadata), &state).await.unwrap();
-            println!("{:?}", domain);
-        }
-
-        assert_eq!(domains.domains.len() > 2000, true);
+        let domains = state.porkbun.as_ref().unwrap().ingest_domains(&state).await.unwrap();
     }
 }

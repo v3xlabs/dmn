@@ -4,10 +4,11 @@ a lightweight domain management daemon
 
 ## Provider Support
 
-| Provider   | Domains     | DNS         |
-| ---------- | ----------- | ----------- |
-| Porkbun    | In Progress | In Progress |
-| Cloudflare | In Progress | In Progress |
+| Provider   | Domains                 | DNS                                                              |
+| ---------- | ----------------------- | ---------------------------------------------------------------- |
+| Porkbun    | ✅ Implemented          | ❌ Not implemented yet                                           |
+| Cloudflare | ✅ Using Global API Key | ✅ Using Token API Key (DNS::Read, Zone::Read) or Global API Key |
+| ...        | ...                     | ...                                                              |
 
 ## Installation
 
@@ -16,37 +17,37 @@ Simply copy over the `compose.yml` file to your server and run it.
 ```yml
 name: dmn
 services:
-  dmn:
-    image: ghcr.io/v3xlabs/dmn:edge
-    environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/dmn
-      JWT_SECRET: abc123
-      PORKBUN_API_KEY: abc123
-      CLOUDFLARE_API_KEY: abc123
-    ports:
-      - "3000:3000"
-    depends_on:
-      - postgres
+    dmn:
+        image: ghcr.io/v3xlabs/dmn:edge
+        environment:
+            DATABASE_URL: postgres://postgres:postgres@postgres:5432/dmn
+            JWT_SECRET: abc123
+            PORKBUN_API_KEY: abc123
+            CLOUDFLARE_API_KEY: abc123
+        ports:
+            - "3000:3000"
+        depends_on:
+            - postgres
 
-  postgres:
-    image: postgres:17
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres # It is recommended to change this to a more secure password
-      POSTGRES_DB: dmn
-    ports:
-      - "5432:5432"
-    volumes:
-      - pg-dmn-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    postgres:
+        image: postgres:17
+        environment:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres # It is recommended to change this to a more secure password
+            POSTGRES_DB: dmn
+        ports:
+            - "5432:5432"
+        volumes:
+            - pg-dmn-data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
 
 volumes:
-  pg-dmn-data:
-   driver: local
+    pg-dmn-data:
+        driver: local
 ```
 
 And then when you're ready to start the daemon, run the following command:
@@ -67,6 +68,15 @@ api_key = "your_api_key"
 api_key = "your_api_key"
 dns = true
 ```
+
+### Cloudflare Token
+
+When creating a cloudflare token visit [the dashboard](https://dash.cloudflare.com/profile/api-tokens) and create a new token with the following permissions:
+
+-   Zone: Zone Read
+-   Zone: DNS Read
+
+For most purposes you will want to select `Include All Zones`, however if you wish to limit the scope of the token you are more then welcome to.
 
 ## Usage
 

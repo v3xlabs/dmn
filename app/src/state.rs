@@ -1,4 +1,4 @@
-use crate::{cache::AppCache, database::Database, modules::porkbun::PorkbunService};
+use crate::{cache::AppCache, database::Database, modules::{cloudflare::CloudflareService, porkbun::PorkbunService}};
 use figment::{providers::Env, Figment};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -15,26 +15,18 @@ pub struct JwtConfig {
     pub secret: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct PorkbunConfig {
-    pub api_key: Option<String>,
-    pub secret_key: Option<String>,
-}
-
 pub struct AppStateInner {
     pub database: Database,
-    pub porkbun: Option<PorkbunService>,
     pub jwt: JwtConfig,
     pub cache: AppCache,
+    pub porkbun: Option<PorkbunService>,
+    pub cloudflare: Option<CloudflareService>,
 }
 
 impl AppStateInner {
     pub async fn init() -> Self {
         // Load configuration from environment variables
-        let porkbun_config = Figment::new()
-            .merge(Env::prefixed("PORKBUN_"))
-            .extract::<PorkbunConfig>()
-            .expect("Failed to load Porkbun configuration");
+        let config_file = Figment::new();
 
         let database_config = Figment::new()
             .merge(Env::prefixed("DATABASE_"))
@@ -50,17 +42,15 @@ impl AppStateInner {
 
         let cache = AppCache::new();
 
-        let porkbun = if porkbun_config.api_key.is_some() {
-            Some(PorkbunService::new(porkbun_config))
-        } else {
-            None
-        };
+        let porkbun = PorkbunService::try_init(&config_file).await;
+        let cloudflare = CloudflareService::try_init(&config_file).await;
 
         Self {
             database,
-            porkbun,
-            jwt,
             cache,
+            jwt,
+            porkbun,
+            cloudflare,
         }
     }
 }

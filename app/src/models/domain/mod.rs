@@ -26,7 +26,7 @@ impl Domain {
     ) -> Result<Self, sqlx::Error> {
         let domain = sqlx::query_as!(
             Domain,
-            "INSERT INTO domains (name, provider, external_id, metadata) VALUES ($1, $2, $3, $4) RETURNING name, provider, external_id, metadata, created_at, updated_at",
+            "INSERT INTO domains (name, provider, external_id, metadata) VALUES ($1, $2, $3, $4) ON CONFLICT (name, provider) DO UPDATE SET metadata = $4 RETURNING name, provider, external_id, metadata, created_at, updated_at",
             name,
             provider,
             external_id,

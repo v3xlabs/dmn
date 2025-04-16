@@ -1,9 +1,16 @@
-use crate::state::PorkbunConfig;
 use anyhow::Error;
+use figment::{providers::Env, Figment};
 use serde::{Deserialize, Serialize};
 use reqwest;
+use tracing::{info, warn};
 
 pub mod domains;
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PorkbunConfig {
+    pub api_key: Option<String>,
+    pub secret_key: Option<String>,
+}
 
 pub struct PorkbunService {
     config: PorkbunConfig,
@@ -26,30 +33,19 @@ impl PorkbunService {
         Self { config }
     }
 
-    /**
-     * Authentication
-Authentication is done by passing an API key and secret API key in the JSON content posted to the URI endpoint. All API calls must include valid API keys. You can create API keys at porkbun.com/account/api. You can test communication with the API using the ping endpoint. The ping endpoint will also return your IP address, this can be handy when building dynamic DNS clients.
-
-Get API Key
-
-Example
-URI Endpoint: https://api.porkbun.com/api/json/v3/ping
-
-
-JSON Command Example
-
-{
-	"secretapikey": "YOUR_SECRET_API_KEY",
-	"apikey": "YOUR_API_KEY"
-}
-
-JSON Response Example
-
-{
-	"status": "SUCCESS",
-	"yourIp": "77.162.232.110"
-}
-     */
+    pub async fn try_init(provider: &impl figment::Provider) -> Option<Self> {
+        let config = Figment::new().merge(Env::prefixed("PORKBUN_")).merge(provider).extract::<PorkbunConfig>();
+        if let Ok(config) = config {
+            let service = Self::new(config);
+            info!("Porkbun config verified");
+            service.ping().await.ok()?;
+            info!("Porkbun token valid (ping successful)");
+            Some(service)
+        } else {
+            warn!("Porkbun config verification failed");
+            None
+        }
+    }
 
     pub async fn ping(&self) -> Result<String, Error> {
         let api_key = self.config.api_key.as_ref().ok_or_else(|| anyhow::anyhow!("Missing api_key"))?;
