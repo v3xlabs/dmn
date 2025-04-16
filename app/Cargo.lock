@@ -3188,8 +3188,7 @@ dependencies = [
 [[package]]
 name = "poem"
 version = "3.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69b1822d29eb35f64eda72900c3e7a578ea874d342943d65902e21de162d4928"
+source = "git+https://github.com/poem-web/poem?branch=master#bce658418275b7b5c73a3b4a4f901aa66ef345c6"
 dependencies = [
  "bytes",
  "futures-util",
@@ -3227,14 +3226,14 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "tracing",
+ "uuid",
  "wildmatch",
 ]
 
 [[package]]
 name = "poem-derive"
 version = "3.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "770e87ccc6ae2af0a1eff0798777be48dffcc30221b5602911ee2bd52e4d5bb5"
+source = "git+https://github.com/poem-web/poem?branch=master#bce658418275b7b5c73a3b4a4f901aa66ef345c6"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -3245,8 +3244,7 @@ dependencies = [
 [[package]]
 name = "poem-openapi"
 version = "5.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ece62d80aacd0b9acde4aee4ebfc66761afb72fa9b018ebadd14a83d9ef21f9d"
+source = "git+https://github.com/poem-web/poem?branch=master#bce658418275b7b5c73a3b4a4f901aa66ef345c6"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -3270,13 +3268,13 @@ dependencies = [
  "thiserror 2.0.12",
  "tokio",
  "url",
+ "uuid",
 ]
 
 [[package]]
 name = "poem-openapi-derive"
 version = "5.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "824acf07346359cd227c6469a969631036377dd6de3c4facecbd366addbc7167"
+source = "git+https://github.com/poem-web/poem?branch=master#bce658418275b7b5c73a3b4a4f901aa66ef345c6"
 dependencies = [
  "darling",
  "http",

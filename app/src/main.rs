@@ -5,6 +5,7 @@ use std::sync::Arc;
 pub mod cache;
 pub mod database;
 pub mod models;
+pub mod modules;
 pub mod server;
 pub mod state;
 // pub mod util;

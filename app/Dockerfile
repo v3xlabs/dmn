@@ -13,7 +13,7 @@ RUN addgroup -g 10001 -S dockergrp && \
 FROM scratch:latest
 
 # Security: Copy user information and switch to non-root user
-# COPY --from=usersetup /etc/passwd /etc/passwd
+COPY --from=usersetup /etc/passwd /etc/passwd
 USER dockeruser
 WORKDIR /app
 

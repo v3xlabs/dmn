@@ -5,18 +5,20 @@ authors = ["Luc <luc@v3x.email>"]
 edition = "2021"
 
 [dependencies]
-poem = { version = "3.1.7", features = [
+poem = { version = "3.1.6", git = "https://github.com/poem-web/poem", branch = "master", features = [
     "rustls",
     "sse",
+    "tempfile",
     "opentelemetry",
+    "requestid"
 ] }
-poem-openapi = { version = "5.1.7", features = [
+poem-openapi = { version = "5.1.8", git = "https://github.com/poem-web/poem", branch = "master", features = [
     "chrono",
+    "uuid",
     "sqlx",
     "url",
     "email",
     "email_address",
-    "redoc",
     "static-files",
 ] }
 chrono = { version = "0.4.39", features = ["serde", "now"] }
