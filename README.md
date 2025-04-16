@@ -33,6 +33,24 @@ services:
       - "3000:3000"
 ```
 
+## Usage
+
+The daemon will automatically keep track of your domains notifying you of new additions, deletions, expiry reminders, and other notifications.
+
+- `dmn porkbun index` - Index your porkbun domains
+- `dmn cloudflare index` - Index your cloudflare domains
+- `dmn domains ls` - List all domains
+- `dmn whois example.com` - Get the whois information for a domain
+- `dmn server` - Start the daemon in server mode
+
+## Provider Support
+
+| Provider   | Domains                 | DNS                                                              |
+| ---------- | ----------------------- | ---------------------------------------------------------------- |
+| Porkbun    | ✅ Implemented          | ❌ Not implemented yet                                           |
+| Cloudflare | ✅ Using Global API Key | ✅ Using Token API Key (DNS::Read, Zone::Read) or Global API Key |
+| ...        | ...                     | ...                                                              |
+
 ## Configuration
 
 ### Cloudflare Token
@@ -50,24 +68,6 @@ This is due to cloudflare lacking a read-only domain API scope.
 ### Porkbun API Key
 
 To get a porkbun api key visit [the dashboard](https://porkbun.com/account/api).
-
-## Provider Support
-
-| Provider   | Domains                 | DNS                                                              |
-| ---------- | ----------------------- | ---------------------------------------------------------------- |
-| Porkbun    | ✅ Implemented          | ❌ Not implemented yet                                           |
-| Cloudflare | ✅ Using Global API Key | ✅ Using Token API Key (DNS::Read, Zone::Read) or Global API Key |
-| ...        | ...                     | ...                                                              |
-
-## Usage
-
-The daemon will automatically keep track of your domains notifying you of new additions, deletions, expiry reminders, and other notifications.
-
-- `dmn porkbun index` - Index your porkbun domains
-- `dmn cloudflare index` - Index your cloudflare domains
-- `dmn domains ls` - List all domains
-- `dmn whois example.com` - Get the whois information for a domain
-- `dmn server` - Start the daemon in server mode
 
 ## API Documentation
 
