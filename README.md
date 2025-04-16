@@ -75,10 +75,17 @@ dns = true
 
 When creating a cloudflare token visit [the dashboard](https://dash.cloudflare.com/profile/api-tokens) and create a new token with the following permissions:
 
--   Zone: Zone Read
--   Zone: DNS Read
+- Zone: Zone Read
+- Zone: DNS Read
 
 For most purposes you will want to select `Include All Zones`, however if you wish to limit the scope of the token you are more then welcome to.
+
+If you wish you use `domains` however you will need to use your `Global API Key` which you can find in the dashboard.
+This is due to cloudflare lacking a read-only domain API scope.
+
+### Porkbun API Key
+
+To get a porkbun api key visit [the dashboard](https://porkbun.com/account/api).
 
 ## Usage
 

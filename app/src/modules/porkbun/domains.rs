@@ -115,12 +115,15 @@ impl DomainService for PorkbunService {
                 None
             };
 
+            let ext_auto_renew = domain.auto_renew.map(|x| x == 1);
+
             let domain = Domain::new(
                 domain.domain.clone(),
                 "porkbun".to_string(),
                 domain.domain.clone(),
                 ext_expiry_at,
                 ext_registered_at,
+                ext_auto_renew,
                 Some(metadata),
                 &state,
             )

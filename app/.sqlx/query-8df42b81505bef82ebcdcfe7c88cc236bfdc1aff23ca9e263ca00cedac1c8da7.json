@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO domains (name, provider, external_id, ext_expiry_at, ext_registered_at, metadata) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (name, provider) DO UPDATE SET ext_expiry_at = $4, ext_registered_at = $5, metadata = $6 RETURNING name, provider, external_id, ext_expiry_at, ext_registered_at, metadata, created_at, updated_at",
+  "query": "INSERT INTO domains (name, provider, external_id, ext_expiry_at, ext_registered_at, ext_auto_renew, metadata) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (name, provider) DO UPDATE SET ext_expiry_at = $4, ext_registered_at = $5, ext_auto_renew = $6, metadata = $7 RETURNING name, provider, external_id, ext_expiry_at, ext_registered_at, ext_auto_renew, metadata, created_at, updated_at",
   "describe": {
     "columns": [
       {
@@ -30,16 +30,21 @@
       },
       {
         "ordinal": 5,
+        "name": "ext_auto_renew",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
         "name": "metadata",
         "type_info": "Json"
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "updated_at",
         "type_info": "Timestamptz"
       }
@@ -51,6 +56,7 @@
         "Text",
         "Timestamptz",
         "Timestamptz",
+        "Bool",
         "Json"
       ]
     },
@@ -62,8 +68,9 @@
       true,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "e1f72486bee43ac0552e0491e9767cabec7b578aa15b73e7e29cbb247e7e6736"
+  "hash": "8df42b81505bef82ebcdcfe7c88cc236bfdc1aff23ca9e263ca00cedac1c8da7"
 }

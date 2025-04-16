@@ -93,12 +93,15 @@ impl DomainService for CloudflareService {
                     .ok()
                     .map(|x| x.to_utc());
 
+                let ext_auto_renew = Some(domain.auto_renew);
+
                 let domain = Domain::new(
                     domain.name.clone(),
                     "cloudflare".to_string(),
                     domain.name,
                     ext_expiry_at,
                     ext_registered_at,
+                    ext_auto_renew,
                     Some(metadata),
                     state,
                 )
