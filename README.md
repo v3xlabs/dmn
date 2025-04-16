@@ -22,11 +22,9 @@ services:
   dmn:
     image: ghcr.io/v3xlabs/dmn:0.0.1
     environment:
-      DATABASE_URL: sqlite://data/sqlite.db
       JWT_SECRET: abc123
       PORKBUN_API_KEY: abc123
       CLOUDFLARE_API_KEY: abc123
-      RUST_LOG: info
     volumes:
       - ./sqlite.db:/data/sqlite.db
     ports:
@@ -37,9 +35,9 @@ services:
 
 The daemon will automatically keep track of your domains notifying you of new additions, deletions, expiry reminders, and other notifications.
 
+- `dmn ls` - List all domains
 - `dmn porkbun index` - Index your porkbun domains
 - `dmn cloudflare index` - Index your cloudflare domains
-- `dmn domains ls` - List all domains
 - `dmn whois example.com` - Get the whois information for a domain
 - `dmn server` - Start the daemon in server mode
 

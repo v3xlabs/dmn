@@ -1,9 +1,12 @@
 use async_std::prelude::FutureExt;
 use clap::{Parser, Subcommand};
+use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Row, Table};
 use figment::Figment;
+use models::domain::Domain;
 use modules::{
     cloudflare::CloudflareService, porkbun::PorkbunService, whois::whois, DomainService,
 };
+use serde_json::Value;
 use state::{AppState, AppStateInner};
 use std::sync::Arc;
 
@@ -28,6 +31,12 @@ pub struct Cli {
 enum Commands {
     /// Start the web server
     Server,
+    /// List all domains
+    Ls {
+        /// Show exact dates ("2025-04-16 12:00:00" instead of "2 years ago")
+        #[arg(long)]
+        exact_dates: bool,
+    },
     /// Porkbun related commands
     Porkbun {
         #[command(subcommand)]
@@ -78,6 +87,72 @@ async fn main() -> Result<(), Error> {
             let http = server::start_http(state.clone());
             let cache_size_notifier = state.cache.collect(&state);
             cache_size_notifier.race(http).await;
+        }
+        Commands::Ls { exact_dates } => {
+            let state: AppState = Arc::new(AppStateInner::init(false).await);
+            let domains = Domain::get_all(&state).await?;
+            let mut table = Table::new();
+            table.load_preset(UTF8_FULL);
+            table.set_content_arrangement(ContentArrangement::Dynamic);
+            table.set_header(vec![
+                "Name",
+                "Provider",
+                "Status",
+                "Expiry",
+                "Registered",
+                "Auto Renew",
+            ]);
+            for domain in domains {
+                // Extract status from metadata
+                let status = domain.metadata.as_ref().and_then(|meta| {
+                    if let Some(s) = meta.get("status").and_then(|v| v.as_str()) {
+                        Some(s)
+                    } else {
+                        meta.get("last_known_status").and_then(|v| v.as_str())
+                    }
+                });
+                let status_cell = match status.map(|s| s.to_ascii_uppercase()) {
+                    Some(ref s) if s == "ACTIVE" || s == "REGISTRATIONACTIVE" => {
+                        Cell::new("ACTIVE").fg(Color::Green)
+                    }
+                    Some(ref s) if s == "AUCTION" => Cell::new(status.unwrap()).fg(Color::Red),
+                    Some(s) => Cell::new(s).fg(Color::Yellow),
+                    None => Cell::new("-").fg(Color::DarkGrey),
+                };
+                table.add_row(Row::from(vec![
+                    Cell::new(&domain.name),
+                    Cell::new(&util::color::colorize_provider(&domain.provider)),
+                    status_cell,
+                    Cell::new(match &domain.ext_expiry_at {
+                        Some(dt) => {
+                            if *exact_dates {
+                                dt.format("%Y-%m-%d %H:%M:%S").to_string()
+                            } else {
+                                chrono_humanize::HumanTime::from(*dt - chrono::Utc::now())
+                                    .to_string()
+                            }
+                        }
+                        None => "-".to_string(),
+                    }),
+                    Cell::new(match &domain.ext_registered_at {
+                        Some(dt) => {
+                            if *exact_dates {
+                                dt.format("%Y-%m-%d %H:%M:%S").to_string()
+                            } else {
+                                chrono_humanize::HumanTime::from(*dt - chrono::Utc::now())
+                                    .to_string()
+                            }
+                        }
+                        None => "-".to_string(),
+                    }),
+                    Cell::new(match domain.ext_auto_renew {
+                        Some(true) => "Yes",
+                        Some(false) => "No",
+                        None => "-",
+                    }),
+                ]));
+            }
+            println!("{}", table);
         }
         Commands::Porkbun { subcommand } => {
             let porkbun = PorkbunService::try_init(&Figment::new())

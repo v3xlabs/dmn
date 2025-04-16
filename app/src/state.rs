@@ -37,20 +37,32 @@ impl AppStateInner {
         let config_file = Figment::new();
 
         // Determine database URL: prefer DATABASE_URL, else default
-        let database_url = if let Ok(url) = env::var("DATABASE_URL") {
-            url
-        } else {
-            panic!("DATABASE_URL is not set");
-        };
-        let database_config = DatabaseConfig {
-            url: Some(database_url),
-        };
+        let database_config = Figment::new()
+            .merge(Env::prefixed("DMN_DATABASE_"))
+            .extract::<DatabaseConfig>()
+            .expect("Failed to load database config");
         let database = Database::init(&database_config).await;
 
-        let api = Figment::new()
+        let api = match Figment::new()
             .merge(Env::prefixed("DMN_API_"))
             .extract::<Option<ServerConfig>>()
-            .expect("Failed to load API secret");
+        {
+            Ok(Some(api)) => Some(api),
+            Ok(None) => {
+                if optimistic {
+                    panic!("Failed to load API config");
+                } else {
+                    None
+                }
+            }
+            Err(error) => {
+                if optimistic {
+                    panic!("Failed to load API config: {}", error);
+                } else {
+                    None
+                }
+            }
+        };
 
         let cache = AppCache::new();
 

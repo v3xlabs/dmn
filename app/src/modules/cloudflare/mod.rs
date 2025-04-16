@@ -27,7 +27,9 @@ impl CloudflareService {
         let credentials = if let Some(global_api_key) = &config.global_api_key {
             Credentials::UserAuthKey {
                 key: global_api_key.clone(),
-                email: config.email.clone().unwrap(),
+                email: config.email.clone().unwrap_or_else(|| {
+                    panic!("No email provided");
+                }),
             }
         } else if let Some(api_key) = &config.api_key {
             Credentials::UserAuthToken { token: api_key.clone() }

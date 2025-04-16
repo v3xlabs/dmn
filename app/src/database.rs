@@ -1,5 +1,6 @@
 use crate::state::DatabaseConfig;
 use sqlx::{migrate::MigrateDatabase, SqlitePool};
+use tracing::info;
 
 pub struct Database {
     pub pool: SqlitePool,
@@ -14,6 +15,8 @@ impl Database {
             let db_path = config_dir + "/dmn/db.sqlite";
             format!("sqlite://{}", db_path).to_string()
         });
+
+        info!("Database URL: {}", database_url);
 
         if !sqlx::Sqlite::database_exists(&database_url).await.unwrap() {
             sqlx::Sqlite::create_database(&database_url).await.unwrap();
