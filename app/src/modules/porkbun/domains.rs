@@ -4,6 +4,7 @@ use anyhow::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::info;
+use chrono::{DateTime, Utc, NaiveDateTime};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -89,10 +90,37 @@ impl DomainService for PorkbunService {
                 "expire_date": domain.expire_date,
                 "security_lock": domain.security_lock,
             });
+            let ext_expiry_at = if let Some(expire_date) = domain.expire_date {
+                match NaiveDateTime::parse_from_str(&expire_date, "%Y-%m-%d %H:%M:%S") 
+                    .map(|naive| naive.and_utc()) {
+                        Ok(x) => Some(x),
+                        Err(errors) => {
+                            tracing::error!("Error parsing expiry date: {}", errors);
+                            None
+                        }
+                    }
+            } else {
+                None
+            };
+            let ext_registered_at = if let Some(create_date) = domain.create_date {
+                match NaiveDateTime::parse_from_str(&create_date, "%Y-%m-%d %H:%M:%S") 
+                    .map(|naive| naive.and_utc()) {
+                        Ok(x) => Some(x),
+                        Err(errors) => {
+                            tracing::error!("Error parsing expiry date: {}", errors);
+                            None
+                        }
+                    }
+            } else {
+                None
+            };
+
             let domain = Domain::new(
                 domain.domain.clone(),
                 "porkbun".to_string(),
                 domain.domain.clone(),
+                ext_expiry_at,
+                ext_registered_at,
                 Some(metadata),
                 &state,
             )

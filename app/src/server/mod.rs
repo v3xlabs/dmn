@@ -1,62 +1,31 @@
-use std::{num::NonZero, sync::Arc};
+use std::num::NonZero;
 
+use domains::DomainApi;
 use governor::Quota;
-// use channel::ChannelApi;
-// use info::InfoApi;
-// use media::MediaApi;
-use opentelemetry::global;
-// use party::PartyApi;
 use poem::{
     endpoint::StaticFilesEndpoint, get, handler, listener::TcpListener,
     middleware::OpenTelemetryMetrics, EndpointExt, Route, Server,
 };
 use poem_openapi::{payload::Html, OpenApi, OpenApiService, Tags};
 
-// use maps::MapsApi;
 use ratelimit::GovRateLimitMiddleware;
 use tracing::info;
 
 use crate::state::AppState;
-// use auth::{oauth::OAuthApi, AuthApi};
-// use bm::BattleMetricsApi;
-// use inventory::InventoryApi;
 
-// pub mod auth;
-// pub mod bm;
-// pub mod inventory;
-// pub mod maps;
-// pub mod party;
+pub mod domains;
 pub mod ratelimit;
 
 #[derive(Tags)]
 pub enum ApiTags {
-    /// Party Related Operations
-    Party,
-    /// Maps Related Operations
-    /// 
-    /// This uses the RustMaps.com API to search for maps
-    Maps,
-    /// Inventory Related Operations
-    /// 
-    /// This uses the scmm.app API to get inventory information
-    Inventory,
-    /// BattleMetrics Related Operations
-    /// 
-    /// This uses the BattleMetrics.com API to get server information
-    BattleMetrics,
-    /// Auth Authentication
-    Auth,
+    /// Domain Related Operations
+    Domains,
+    /// DNS Related Operations
+    DNS,
 }
 
 fn get_api(state: AppState) -> impl OpenApi {
-    (
-        // PartyApi,
-        // MapsApi,
-        // AuthApi,
-        // OAuthApi::new(state.clone()),
-        // BattleMetricsApi,
-        // InventoryApi,
-    )
+    DomainApi
 }
 
 pub async fn start_http(state: AppState) {
@@ -75,7 +44,6 @@ pub async fn start_http(state: AppState) {
         .with(limiter)
         // .with(TraceId::new(Arc::new(global::tracer("dmn"))))
         .with(OpenTelemetryMetrics::new());
-
 
     let path = std::path::Path::new("./www");
 
