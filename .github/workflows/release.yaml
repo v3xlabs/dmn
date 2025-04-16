@@ -68,8 +68,8 @@ jobs:
       steps:
           - name: Checkout
             uses: actions/checkout@v4
-            with:
-                fetch-tags: true
+            # with:
+                # fetch-tags: true
 
           # Set up Rust with the specific target we need
           - name: Install Rust
