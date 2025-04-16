@@ -1,4 +1,4 @@
-use crate::{cache::AppCache, database::Database};
+use crate::{cache::AppCache, database::Database, modules::porkbun::PorkbunService};
 use figment::{providers::Env, Figment};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -18,11 +18,12 @@ pub struct JwtConfig {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PorkbunConfig {
     pub api_key: Option<String>,
+    pub secret_key: Option<String>,
 }
 
 pub struct AppStateInner {
     pub database: Database,
-    pub porkbun_config: PorkbunConfig,
+    pub porkbun: Option<PorkbunService>,
     pub jwt: JwtConfig,
     pub cache: AppCache,
 }
@@ -49,9 +50,15 @@ impl AppStateInner {
 
         let cache = AppCache::new();
 
+        let porkbun = if porkbun_config.api_key.is_some() {
+            Some(PorkbunService::new(porkbun_config))
+        } else {
+            None
+        };
+
         Self {
             database,
-            porkbun_config,
+            porkbun,
             jwt,
             cache,
         }

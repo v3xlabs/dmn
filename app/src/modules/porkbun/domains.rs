@@ -1,32 +1,114 @@
 use anyhow::Error;
-
-use crate::models::domain::Domain;
-
+use serde::{Deserialize, Serialize};
 use super::PorkbunService;
+use crate::util::serde_strint::string_or_int_to_option_i32;
 
-impl PorkbunService {
-    pub async fn get_domains(&self) -> Result<Vec<Domain>, Error> {
-        let domains = vec![];
-        Ok(domains)
-    }
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PorkbunDomain {
+    pub domain: String,
+    pub status: Option<String>,
+    pub tld: Option<String>,
+    pub create_date: Option<String>,
+    pub expire_date: Option<String>,
+    pub security_lock: Option<String>,
+    pub whois_privacy: Option<String>,
+    #[serde(deserialize_with = "string_or_int_to_option_i32")]
+    pub auto_renew: Option<i32>,
+    #[serde(deserialize_with = "string_or_int_to_option_i32")]
+    pub not_local: Option<i32>,
+    // Add more fields as needed from the API
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PorkbunDomainData {
+    pub status: String,
+    pub domains: Vec<PorkbunDomain>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ListAllRequest<'a> {
+    apikey: &'a str,
+    secretapikey: &'a str,
+    start: Option<i32>,
+    // 'yes'
+    includeLabels: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct ListAllResponse {
+    status: String,
+    domains: Vec<PorkbunDomain>,
+}
+
+/// Based on https://porkbun.com/api/json/v3/documentation#
+impl PorkbunService {
+    pub async fn get_domains(&self) -> Result<PorkbunDomainData, Error> {
+        let api_key = self.config.api_key.as_ref().ok_or_else(|| anyhow::anyhow!("Missing api_key"))?;
+        let secret_key = self.config.secret_key.as_ref().ok_or_else(|| anyhow::anyhow!("Missing secret_key"))?;
+        let client = reqwest::Client::new();
+        let req_body = ListAllRequest {
+            apikey: api_key,
+            secretapikey: secret_key,
+            start: Some(0),
+            includeLabels: None,
+        };
+        let response = client
+            .post("https://api.porkbun.com/api/json/v3/domain/listAll")
+            .json(&req_body)
+            .send()
+            .await?;
+        let status = response.status();
+        let text = response.text().await?;
+        if !status.is_success() {
+            return Err(anyhow::anyhow!("Domain listAll failed: {}", text));
+        }
+        let resp: ListAllResponse = serde_json::from_str(&text)?;
+        if resp.status != "SUCCESS" {
+            return Err(anyhow::anyhow!("Domain listAll error: {}", resp.status));
+        }
+        Ok(PorkbunDomainData {
+            status: resp.status,
+            domains: resp.domains,
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {
 
-    use crate::state::AppStateInner;
+    use std::sync::Arc;
+
+    use serde_json::json;
+
+    use crate::{models::domain::Domain, state::AppStateInner};
 
     use super::*;
 
     #[async_std::test]
     async fn test_get_domains() {
         dotenvy::dotenv().ok();
-        let state = AppStateInner::init().await;
+        let state = Arc::new(AppStateInner::init().await);
 
-        let service = PorkbunService::new("test".to_string());
-        let domains = service.get_domains().await.unwrap();
+        let domains = state.porkbun.as_ref().unwrap().get_domains().await.unwrap();
 
-        assert_eq!(domains.len(), 0);
+        println!("{:?}", domains);
+
+        for domain in &domains.domains {
+            let metadata = json!({
+                "status": domain.status,
+                "tld": domain.tld,
+                "create_date": domain.create_date,
+                "expire_date": domain.expire_date,
+                "security_lock": domain.security_lock,
+            });
+            let domain = Domain::new(domain.domain.clone(), "porkbun".to_string(), domain.domain.clone(), Some(metadata), &state).await.unwrap();
+            println!("{:?}", domain);
+        }
+
+        assert_eq!(domains.domains.len() > 2000, true);
     }
 }

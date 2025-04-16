@@ -8,7 +8,7 @@ pub mod models;
 pub mod modules;
 pub mod server;
 pub mod state;
-// pub mod util;
+pub mod util;
 
 #[async_std::main]
 async fn main() {
