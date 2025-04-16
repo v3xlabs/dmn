@@ -1,6 +1,6 @@
 # dmn
 
-[![Docker Image 16MB](https://img.shields.io/badge/Docker%20Image-%3C16MB-brightgreen)](https://ghcr.io/v3xlabs/dmn) ![Porkbun Support](https://img.shields.io/badge/Porkbun-Supported-EF7878?logo=porkbun) ![Cloudflare Support](https://img.shields.io/badge/Cloudflare-Supported-F38020?logo=cloudflare)
+[![Docker Image 16MB](https://img.shields.io/badge/Docker%20Image-%3C16MB-brightgreen)](https://ghcr.io/v3xlabs/dmn) ![Porkbun Support](https://img.shields.io/badge/Porkbun-Supported-EF7878?logo=porkbun) ![Cloudflare Support](https://img.shields.io/badge/Cloudflare-Supported-F38020?logo=cloudflare) ![Docs using OpenAPI](https://img.shields.io/badge/Docs-OpenAPI-brightgreen?logo=swagger)
 
 a lightweight domain management daemon
 
