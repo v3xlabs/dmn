@@ -24,21 +24,21 @@ poem-openapi = { version = "5.1.8", git = "https://github.com/poem-web/poem", br
 chrono = { version = "0.4.39", features = ["serde", "now"] }
 anyhow = "1.0.93"
 dotenvy = "0.15.7"
-regex = "1.11.1"
-reqwest = { version = "0.12.5", features = [
-    "rustls-tls",
-    # Add back the default features excluding native-tls
-    "charset",
-    "http2",
-    "json",
-    "macos-system-configuration",
-], default-features = false }
-rustls = "0.23.19"
+# regex = "1.11.1"
+# reqwest = { version = "0.12.5", features = [
+#     "rustls-tls",
+#     # Add back the default features excluding native-tls
+#     "charset",
+#     "http2",
+#     "json",
+#     "macos-system-configuration",
+# ], default-features = false }
+# rustls = "0.23.19"
 serde = "1.0.204"
-serde_json = { version = "1.0", features = ["raw_value"] }
-serde_repr = "0.1.19"
-serde_with = { version = "3.9.0", features = ["json", "chrono"] }
-sha2 = "0.10.8"
+# serde_json = { version = "1.0", features = ["raw_value"] }
+# serde_repr = "0.1.19"
+# serde_with = { version = "3.9.0", features = ["json", "chrono"] }
+# sha2 = "0.10.8"
 sqlx = { version = "0.8.3", features = [
     "runtime-async-std",
     "tls-rustls",
@@ -47,26 +47,26 @@ sqlx = { version = "0.8.3", features = [
     "json",
     "ipnetwork",
 ] }
-openid = { version = "0.16.1", default-features = false, features = ["rustls"] }  # OpenID Connect & Discovery client library - actively maintained
-urlencoding = "2.1.3"  # URL encoding/decoding functionality
-thiserror = "2.0.3"
-url = { version = "2.5.2", features = ["serde"] }
+# openid = { version = "0.16.1", default-features = false, features = ["rustls"] }  # OpenID Connect & Discovery client library - actively maintained
+# urlencoding = "2.1.3"  # URL encoding/decoding functionality
+# thiserror = "2.0.3"
+# url = { version = "2.5.2", features = ["serde"] }
 async-std = { version = "1.13.0", features = ["attributes", "tokio1"] }
-bigdecimal = { version = "0.4.5", features = ["serde"] }
-build-info = "0.0.39"
-futures = "0.3.31"
-parallel-stream = "2.1.3"
+# bigdecimal = { version = "0.4.5", features = ["serde"] }
+# build-info = "0.0.39"
+# futures = "0.3.31"
+# parallel-stream = "2.1.3"
 figment = { version = "0", features = ["env", "serde_json"] }
-prometheus = "0.13.4"
-hmac = "0.12.1"
-time = "0.3.37"
-lazy_static = "1.5.0"
-rs-snowflake = "0.6.0"
-hex = "0.4.3"
-ring = "0.17.8"
-image = "0.25.5"
-tree_magic = "0.2.3"
-num-format = "0.4.4"
+# prometheus = "0.13.4"
+# hmac = "0.12.1"
+# time = "0.3.37"
+# lazy_static = "1.5.0"
+# rs-snowflake = "0.6.0"
+# hex = "0.4.3"
+# ring = "0.17.8"
+# image = "0.25.5"
+# tree_magic = "0.2.3"
+# num-format = "0.4.4"
 
 tracing = { version = "0.1.40", features = ["attributes"] }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
@@ -85,12 +85,12 @@ opentelemetry-prometheus = "0.28.0"
 tracing-log = "0.2.0"
 tracing-futures = "0.2.5"
 opentelemetry-appender-tracing = { version = "0.28.1", features = ["tracing-opentelemetry"] }
-sqids = "0.4.2"
-rand = "0.9.0"
-jsonwebtoken = "9.3.1"
-fake = "4.0.0"
-uri = "0.4.0"
-moka = { version = "0.12.10", features = ["future"] }
+# sqids = "0.4.2"
+# rand = "0.9.0"
+# jsonwebtoken = "9.3.1"
+# fake = "4.0.0"
+# uri = "0.4.0"
+# moka = { version = "0.12.10", features = ["future"] }
 governor = "0.8.1"
 async-trait = "0.1.88"
 
