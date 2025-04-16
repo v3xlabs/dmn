@@ -1,12 +1,16 @@
 use crate::Error;
 use async_std::net::TcpStream;
 use async_std::prelude::*;
+use chrono::{DateTime, Utc};
+use chrono_humanize::HumanTime;
+use colored::*;
+use comfy_table::{
+    presets::UTF8_FULL, Attribute, Cell, CellAlignment, ContentArrangement, Row, Table,
+};
+use regex::Regex;
 use std::fmt;
 use std::net::ToSocketAddrs;
 use whois_rust::{Target, WhoIs, WhoIsHost, WhoIsLookupOptions};
-use regex::Regex;
-use colored::*;
-use comfy_table::{Table, presets::UTF8_FULL, ContentArrangement, Cell, Row, Attribute, CellAlignment};
 
 /// Struct to hold the result of a whois lookup
 #[derive(Debug, Clone)]
@@ -39,67 +43,70 @@ pub async fn whois(domain: String) -> Result<WhoisResult, Error> {
         .await?;
 
     // strip off everything behind `>>> Last update of WHOIS database: 2025-04-16T07:27:49Z <<<`
-    let raw = raw.split(">>> Last update of WHOIS database:").next().unwrap();
+    let raw = raw
+        .split(">>> Last update of WHOIS database:")
+        .next()
+        .unwrap();
 
     // example of raw:
     /*
-Domain Name: v3x.sh
-Registry Domain ID: eff74bbdf39c4e258f687c70c22df6a3-DONUTS
-Registrar WHOIS Server: whois.porkbun.com
-Registrar URL: http://porkbun.com
-Updated Date: 2025-04-10T00:03:30Z
-Creation Date: 2022-12-27T00:24:43Z
-Registry Expiry Date: 2025-12-27T00:24:43Z
-Registrar: Porkbun LLC
-Registrar IANA ID: 1861
-Registrar Abuse Contact Email: abuse@porkbun.com
-Registrar Abuse Contact Phone: +1.5038508351
-Domain Status: clientDeleteProhibited https://icann.org/epp#clientDeleteProhibited
-Domain Status: clientTransferProhibited https://icann.org/epp#clientTransferProhibited
-Registry Registrant ID: REDACTED
-Registrant Name: REDACTED
-Registrant Organization: Private by Design, LLC
-Registrant Street: REDACTED
-Registrant City: REDACTED
-Registrant State/Province: NC
-Registrant Postal Code: REDACTED
-Registrant Country: US
-Registrant Phone: REDACTED
-Registrant Phone Ext: REDACTED
-Registrant Fax: REDACTED
-Registrant Fax Ext: REDACTED
-Registrant Email: REDACTED
-Registry Admin ID: REDACTED
-Admin Name: REDACTED
-Admin Organization: REDACTED
-Admin Street: REDACTED
-Admin City: REDACTED
-Admin State/Province: REDACTED
-Admin Postal Code: REDACTED
-Admin Country: REDACTED
-Admin Phone: REDACTED
-Admin Phone Ext: REDACTED
-Admin Fax: REDACTED
-Admin Fax Ext: REDACTED
-Admin Email: REDACTED
-Registry Tech ID: REDACTED
-Tech Name: REDACTED
-Tech Organization: REDACTED
-Tech Street: REDACTED
-Tech City: REDACTED
-Tech State/Province: REDACTED
-Tech Postal Code: REDACTED
-Tech Country: REDACTED
-Tech Phone: REDACTED
-Tech Phone Ext: REDACTED
-Tech Fax: REDACTED
-Tech Fax Ext: REDACTED
-Tech Email: REDACTED
-Name Server: thomas.ns.cloudflare.com
-Name Server: simone.ns.cloudflare.com
-DNSSEC: unsigned
-URL of the ICANN Whois Inaccuracy Complaint Form: https://icann.org/wicf/    
-     */
+    Domain Name: v3x.sh
+    Registry Domain ID: eff74bbdf39c4e258f687c70c22df6a3-DONUTS
+    Registrar WHOIS Server: whois.porkbun.com
+    Registrar URL: http://porkbun.com
+    Updated Date: 2025-04-10T00:03:30Z
+    Creation Date: 2022-12-27T00:24:43Z
+    Registry Expiry Date: 2025-12-27T00:24:43Z
+    Registrar: Porkbun LLC
+    Registrar IANA ID: 1861
+    Registrar Abuse Contact Email: abuse@porkbun.com
+    Registrar Abuse Contact Phone: +1.5038508351
+    Domain Status: clientDeleteProhibited https://icann.org/epp#clientDeleteProhibited
+    Domain Status: clientTransferProhibited https://icann.org/epp#clientTransferProhibited
+    Registry Registrant ID: REDACTED
+    Registrant Name: REDACTED
+    Registrant Organization: Private by Design, LLC
+    Registrant Street: REDACTED
+    Registrant City: REDACTED
+    Registrant State/Province: NC
+    Registrant Postal Code: REDACTED
+    Registrant Country: US
+    Registrant Phone: REDACTED
+    Registrant Phone Ext: REDACTED
+    Registrant Fax: REDACTED
+    Registrant Fax Ext: REDACTED
+    Registrant Email: REDACTED
+    Registry Admin ID: REDACTED
+    Admin Name: REDACTED
+    Admin Organization: REDACTED
+    Admin Street: REDACTED
+    Admin City: REDACTED
+    Admin State/Province: REDACTED
+    Admin Postal Code: REDACTED
+    Admin Country: REDACTED
+    Admin Phone: REDACTED
+    Admin Phone Ext: REDACTED
+    Admin Fax: REDACTED
+    Admin Fax Ext: REDACTED
+    Admin Email: REDACTED
+    Registry Tech ID: REDACTED
+    Tech Name: REDACTED
+    Tech Organization: REDACTED
+    Tech Street: REDACTED
+    Tech City: REDACTED
+    Tech State/Province: REDACTED
+    Tech Postal Code: REDACTED
+    Tech Country: REDACTED
+    Tech Phone: REDACTED
+    Tech Phone Ext: REDACTED
+    Tech Fax: REDACTED
+    Tech Fax Ext: REDACTED
+    Tech Email: REDACTED
+    Name Server: thomas.ns.cloudflare.com
+    Name Server: simone.ns.cloudflare.com
+    DNSSEC: unsigned
+    URL of the ICANN Whois Inaccuracy Complaint Form: https://icann.org/wicf/
+         */
 
     let styled = style_raw(raw);
 
@@ -110,13 +117,22 @@ URL of the ICANN Whois Inaccuracy Complaint Form: https://icann.org/wicf/
 }
 
 fn style_raw(raw: &str) -> String {
-    // Define regexes for the fields we care about
+    let now = Utc::now();
     let re_fields = [
         ("Registrar", Regex::new(r"Registrar:\s*(.+)").unwrap()),
-        ("Registrar URL", Regex::new(r"Registrar URL:\s*(.+)").unwrap()),
-        ("Registry Expiry Date", Regex::new(r"Registry Expiry Date:\s*(.+)").unwrap()),
+        (
+            "Registrar URL",
+            Regex::new(r"Registrar URL:\s*(.+)").unwrap(),
+        ),
+        (
+            "Expiry Date",
+            Regex::new(r"Registry Expiry Date:\s*(.+)").unwrap(),
+        ),
         ("Updated Date", Regex::new(r"Updated Date:\s*(.+)").unwrap()),
-        ("Creation Date", Regex::new(r"Creation Date:\s*(.+)").unwrap()),
+        (
+            "Creation Date",
+            Regex::new(r"Creation Date:\s*(.+)").unwrap(),
+        ),
         ("DNSSEC", Regex::new(r"DNSSEC:\s*(.+)").unwrap()),
     ];
     let ns_re = Regex::new(r"Name Server:\s*(.+)").unwrap();
@@ -125,30 +141,50 @@ fn style_raw(raw: &str) -> String {
     let mut values = vec![];
     let mut redacted_fields = vec![];
     for (label, re) in &re_fields {
-        let value = re.captures(raw).and_then(|cap| cap.get(1)).map(|m| m.as_str().trim()).unwrap_or("");
+        let value = re
+            .captures(raw)
+            .and_then(|cap| cap.get(1))
+            .map(|m| m.as_str().trim())
+            .unwrap_or("");
+        let mut display_value = value.to_string();
+        // For date fields, append humanized time with explicit 'in' or 'ago'
+        if ["Expiry Date", "Updated Date", "Creation Date"].contains(&label)
+            && !value.is_empty()
+            && value != "REDACTED"
+        {
+            if let Ok(dt) = DateTime::parse_from_rfc3339(value) {
+                let dt_utc = dt.with_timezone(&Utc);
+                let duration = dt_utc.signed_duration_since(now);
+                let ht = chrono_humanize::HumanTime::from(duration).to_string();
+                display_value = format!("{} ({})", value, ht);
+            }
+        }
         let styled = if value == "REDACTED" {
             redacted_fields.push(label.to_string());
-            value.truecolor(128,128,128).to_string()
+            value.truecolor(128, 128, 128).to_string()
         } else if *label == "DNSSEC" {
             if value.eq_ignore_ascii_case("unsigned") {
                 format!("{} {}", "DNSSEC".bold(), "✗".red())
             } else {
                 format!("{} {}", "DNSSEC".bold(), "✔".green())
             }
+        } else if *label == "Name Servers" {
+            display_value.cyan().to_string()
         } else {
-            value.yellow().to_string()
+            display_value.yellow().to_string()
         };
         values.push((label.to_string(), styled));
     }
 
     // Name Servers (can be multiple)
-    let name_servers: Vec<_> = ns_re.captures_iter(raw)
+    let name_servers: Vec<_> = ns_re
+        .captures_iter(raw)
         .filter_map(|cap| cap.get(1))
         .map(|m| {
             let v = m.as_str().trim();
             if v == "REDACTED" {
                 redacted_fields.push("Name Server".to_string());
-                v.truecolor(128,128,128).to_string()
+                v.truecolor(128, 128, 128).to_string()
             } else {
                 v.cyan().to_string()
             }
@@ -166,16 +202,25 @@ fn style_raw(raw: &str) -> String {
     table.load_preset(UTF8_FULL);
     table.set_content_arrangement(ContentArrangement::Dynamic);
     table.set_header(vec![
-        Cell::new("Field").add_attribute(Attribute::Bold).fg(comfy_table::Color::Blue),
-        Cell::new("Value").add_attribute(Attribute::Bold).fg(comfy_table::Color::Yellow),
+        Cell::new("Field")
+            .add_attribute(Attribute::Bold)
+            .fg(comfy_table::Color::Blue),
+        Cell::new("Value")
+            .add_attribute(Attribute::Bold)
+            .fg(comfy_table::Color::Yellow),
     ]);
     for (k, v) in values {
-        let key_cell = Cell::new(k.clone()).add_attribute(Attribute::Bold).fg(comfy_table::Color::Blue).set_alignment(CellAlignment::Left);
+        let key_cell = Cell::new(k.clone())
+            .add_attribute(Attribute::Bold)
+            .fg(comfy_table::Color::Blue)
+            .set_alignment(CellAlignment::Left);
         // DNSSEC and Name Servers already colored, others yellow
         let value_cell = if k.as_str() == "DNSSEC" || k.as_str() == "Name Servers" {
             Cell::new(v).set_alignment(CellAlignment::Left)
         } else {
-            Cell::new(v).fg(comfy_table::Color::Yellow).set_alignment(CellAlignment::Left)
+            Cell::new(v)
+                .fg(comfy_table::Color::Yellow)
+                .set_alignment(CellAlignment::Left)
         };
         table.add_row(Row::from(vec![key_cell, value_cell]));
     }
@@ -183,9 +228,13 @@ fn style_raw(raw: &str) -> String {
     // Show the rest of the raw output (less important fields)
     let mut rest = String::new();
     for line in raw.lines() {
-        if line.trim().is_empty() { continue; }
+        if line.trim().is_empty() {
+            continue;
+        }
         // skip already shown fields
-        if re_fields.iter().any(|(_, re)| re.is_match(line)) || ns_re.is_match(line) { continue; }
+        if re_fields.iter().any(|(_, re)| re.is_match(line)) || ns_re.is_match(line) {
+            continue;
+        }
         // skip REDACTED lines, but collect field name
         if let Some(cap) = field_re.captures(line) {
             let field = cap.get(1).unwrap().as_str().trim();
@@ -194,9 +243,13 @@ fn style_raw(raw: &str) -> String {
                 redacted_fields.push(field.to_string());
                 continue;
             }
+
+            rest.push_str(&format!("{}: {}", field.bright_black(), value));
+            rest.push('\n');
+        } else {
+            rest.push_str(line);
+            rest.push('\n');
         }
-        rest.push_str(line);
-        rest.push('\n');
     }
 
     // Aggregate and deduplicate redacted fields

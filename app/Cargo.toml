@@ -98,6 +98,7 @@ whois-rust = { version = "1.6.0", features = ["tokio"] }
 colored = "2.1.0"
 comfy-table = { version = "7.1.0", features = ["custom_styling"] }
 regex = "1.11.0"
+chrono-humanize = "0.2.3"
 
 [build-dependencies]
 build-info-build = "0.0.39"
