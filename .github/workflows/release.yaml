@@ -78,6 +78,8 @@ jobs:
                   tags: ${{ steps.meta.outputs.tags }}
                   labels: ${{ steps.meta.outputs.labels }}
                   cache-from: type=gha
+                  build-args: |
+                      BINARY_PATH=./target/release/dmn
                   # cache-to: type=gha,mode=max
 
             - name: Build Docker Image (master)

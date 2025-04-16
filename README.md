@@ -33,7 +33,7 @@ dns = true
 
 ## Usage
 
-The daemon will automatically check for new domains and update the DNS records.
+The daemon will automatically keep track of your domains notifying you of new additions, deletions, expiry reminders, and other notifications.
 
 ## API Documentation
 
