@@ -1,11 +1,15 @@
-use crate::{cache::AppCache, database::Database, modules::{cloudflare::CloudflareService, porkbun::PorkbunService}};
+use crate::{
+    cache::AppCache,
+    database::Database,
+    modules::{cloudflare::CloudflareService, porkbun::PorkbunService},
+};
+use dirs;
 use figment::{providers::Env, Figment};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use shellexpand;
 use std::env;
 use std::path::PathBuf;
-use dirs;
-use shellexpand;
+use std::sync::Arc;
 
 pub type AppState = Arc<AppStateInner>;
 
@@ -15,13 +19,13 @@ pub struct DatabaseConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct JwtConfig {
+pub struct ServerConfig {
     pub secret: String,
 }
 
 pub struct AppStateInner {
     pub database: Database,
-    pub jwt: JwtConfig,
+    pub api: Option<ServerConfig>,
     pub cache: AppCache,
     pub porkbun: Option<PorkbunService>,
     pub cloudflare: Option<CloudflareService>,
@@ -32,26 +36,21 @@ impl AppStateInner {
         // Load configuration from environment variables
         let config_file = Figment::new();
 
-        // Determine database URL: prefer DATABASE_URL, else DMN_DB_PATH, else default
+        // Determine database URL: prefer DATABASE_URL, else default
         let database_url = if let Ok(url) = env::var("DATABASE_URL") {
             url
         } else {
-            let db_path = env::var("DMN_DB_PATH").unwrap_or_else(|_| {
-                let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
-                format!("{}/.config/dmn/sqlite", home.display())
-            });
-            // Ensure parent directory exists
-            let db_path = shellexpand::tilde(&db_path).to_string();
-            std::fs::create_dir_all(PathBuf::from(&db_path).parent().unwrap()).ok();
-            format!("sqlite://{}", db_path)
+            panic!("DATABASE_URL is not set");
         };
-        let database_config = DatabaseConfig { url: Some(database_url) };
+        let database_config = DatabaseConfig {
+            url: Some(database_url),
+        };
         let database = Database::init(&database_config).await;
 
-        let jwt = Figment::new()
-            .merge(Env::prefixed("JWT_"))
-            .extract::<JwtConfig>()
-            .expect("Failed to load JWT secret");
+        let api = Figment::new()
+            .merge(Env::prefixed("DMN_API_"))
+            .extract::<Option<ServerConfig>>()
+            .expect("Failed to load API secret");
 
         let cache = AppCache::new();
 
@@ -69,7 +68,7 @@ impl AppStateInner {
         Self {
             database,
             cache,
-            jwt,
+            api,
             porkbun,
             cloudflare,
         }
@@ -78,7 +77,6 @@ impl AppStateInner {
 
 impl std::fmt::Debug for AppStateInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AppStateInner")
-            .finish()
+        f.debug_struct("AppStateInner").finish()
     }
 }

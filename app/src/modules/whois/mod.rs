@@ -1,15 +1,13 @@
 use crate::Error;
-use async_std::net::TcpStream;
 use async_std::prelude::*;
 use chrono::{DateTime, Utc};
-use chrono_humanize::HumanTime;
 use colored::*;
 use comfy_table::{
     presets::UTF8_FULL, Attribute, Cell, CellAlignment, ContentArrangement, Row, Table,
 };
 use regex::Regex;
+use tracing::info;
 use std::fmt;
-use std::net::ToSocketAddrs;
 use whois_rust::{Target, WhoIs, WhoIsHost, WhoIsLookupOptions};
 
 /// Struct to hold the result of a whois lookup
@@ -126,16 +124,19 @@ fn style_raw(raw: &str) -> String {
         ),
         (
             "Expiry Date",
-            Regex::new(r"Registry Expiry Date:\s*(.+)").unwrap(),
+            Regex::new(r"Registry Expiry Date:\s*(.+)|Expiration date:\s*(.+)").unwrap(),
         ),
-        ("Updated Date", Regex::new(r"Updated Date:\s*(.+)").unwrap()),
+        (
+            "Updated Date",
+            Regex::new(r"Updated Date:\s*(.+)|Modification date:\s*(.+)").unwrap(),
+        ),
         (
             "Creation Date",
-            Regex::new(r"Creation Date:\s*(.+)").unwrap(),
+            Regex::new(r"Creation Date:\s*(.+)|Registration date:\s*(.+)").unwrap(),
         ),
-        ("DNSSEC", Regex::new(r"DNSSEC:\s*(.+)").unwrap()),
+        ("DNSSEC", Regex::new(r"DNSSEC:\s*(.+)|DNSSEC signed:\s*(.+)").unwrap()),
     ];
-    let ns_re = Regex::new(r"Name Server:\s*(.+)").unwrap();
+    let ns_re = Regex::new(r"Name Server:\s*(.+)|DNS:\s*(.+)").unwrap();
     let field_re = Regex::new(r"^([A-Za-z0-9 /_-]+):\s*(.+)$").unwrap();
 
     let mut values = vec![];
@@ -143,17 +144,36 @@ fn style_raw(raw: &str) -> String {
     for (label, re) in &re_fields {
         let value = re
             .captures(raw)
-            .and_then(|cap| cap.get(1))
-            .map(|m| m.as_str().trim())
-            .unwrap_or("");
+            .and_then(|cap| {
+                let mut i = cap.iter();
+                i.next();
+                for m in i {
+                    if let Some(m) = m {
+                        return Some(m.as_str().trim());
+                    }
+                }
+                None
+            })
+            .unwrap_or("-");
         let mut display_value = value.to_string();
+
+        info!("{}: {}", label, value);
         // For date fields, append humanized time with explicit 'in' or 'ago'
         if ["Expiry Date", "Updated Date", "Creation Date"].contains(&label)
             && !value.is_empty()
             && value != "REDACTED"
         {
-            if let Ok(dt) = DateTime::parse_from_rfc3339(value) {
-                let dt_utc = dt.with_timezone(&Utc);
+            info!("z{}: {}", label, value);
+            // Try to parse both RFC3339 and fallback to custom format (e.g. 02.05.2023 14:51:07)
+            let dt_opt = DateTime::parse_from_rfc3339(value)
+                .map(|dt| dt.with_timezone(&Utc))
+                .ok()
+                .or_else(|| {
+                    chrono::NaiveDateTime::parse_from_str(value, "%d.%m.%Y %H:%M:%S")
+                        .ok()
+                        .map(|dt| chrono::DateTime::<Utc>::from_utc(dt, Utc))
+                });
+            if let Some(dt_utc) = dt_opt {
                 let duration = dt_utc.signed_duration_since(now);
                 let ht = chrono_humanize::HumanTime::from(duration).to_string();
                 display_value = format!("{} ({})", value, ht);

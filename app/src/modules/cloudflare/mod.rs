@@ -1,5 +1,5 @@
 use cloudflare::{
-    endpoints::zones::zone::{self, ListZones, ListZonesParams, Zone},
+    endpoints::zones::zone::{ListZones, ListZonesParams, Zone},
     framework::{auth::Credentials, client::async_api::Client, response::ApiFailure},
 };
 use figment::{providers::Env, Figment};

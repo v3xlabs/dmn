@@ -1,7 +1,9 @@
 use async_std::prelude::FutureExt;
 use clap::{Parser, Subcommand};
 use figment::Figment;
-use modules::{cloudflare::CloudflareService, porkbun::PorkbunService, whois::{self, whois}, DomainService};
+use modules::{
+    cloudflare::CloudflareService, porkbun::PorkbunService, whois::whois, DomainService,
+};
 use state::{AppState, AppStateInner};
 use std::sync::Arc;
 
@@ -63,8 +65,6 @@ enum CloudflareCommands {
 
 #[async_std::main]
 async fn main() -> Result<(), Error> {
-    dotenvy::dotenv().ok();
-
     tracing_subscriber::fmt::init();
     tracing::info!("Starting dmn");
 
@@ -72,6 +72,8 @@ async fn main() -> Result<(), Error> {
 
     match &cli.command {
         Commands::Server => {
+            dotenvy::dotenv().ok();
+
             let state: AppState = Arc::new(AppStateInner::init(true).await);
             let http = server::start_http(state.clone());
             let cache_size_notifier = state.cache.collect(&state);
@@ -111,7 +113,7 @@ async fn main() -> Result<(), Error> {
                     cloudflare.ingest_domains(&state).await?;
                 }
             }
-        },
+        }
         Commands::Whois { domain } => {
             println!("Querying Whois for domain: {}", domain);
             let result = whois(domain.clone()).await?;

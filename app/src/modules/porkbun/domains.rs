@@ -4,7 +4,7 @@ use anyhow::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::info;
-use chrono::{DateTime, Utc, NaiveDateTime};
+use chrono::NaiveDateTime;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
