@@ -66,7 +66,7 @@ jobs:
       timeout-minutes: 20 # Prevent hanging builds
       runs-on: ubuntu-latest
       permissions:
-          contents: read
+          contents: write
       steps:
           - name: Checkout
             uses: actions/checkout@v4
