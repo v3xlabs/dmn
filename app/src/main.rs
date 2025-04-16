@@ -21,7 +21,13 @@ pub mod util;
 pub type Error = anyhow::Error;
 
 #[derive(Parser)]
-#[command(name = "dmn", about = "Domain management CLI")]
+#[command(
+    name = "dmn",
+    about = "Domain management CLI",
+    version,
+    long_about = None,
+    after_help = "Run 'dmn --version' to see the version."
+)]
 pub struct Cli {
     #[command(subcommand)]
     command: Commands,

@@ -1,6 +1,6 @@
 [package]
 name = "dmn"
-version = "0.0.1"
+version = "0.1.0-dev"
 authors = ["Luc <luc@v3x.email>"]
 edition = "2021"
 
