@@ -30,17 +30,16 @@ impl Domain {
         metadata: Option<Value>,
         state: &AppState,
     ) -> Result<Self, sqlx::Error> {
-        let domain = sqlx::query_as!(
-            Domain,
-            "INSERT INTO domains (name, provider, external_id, ext_expiry_at, ext_registered_at, ext_auto_renew, metadata) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (name, provider) DO UPDATE SET ext_expiry_at = $4, ext_registered_at = $5, ext_auto_renew = $6, metadata = $7 RETURNING name, provider, external_id, ext_expiry_at, ext_registered_at, ext_auto_renew, metadata, created_at, updated_at",
-            name,
-            provider,
-            external_id,
-            ext_expiry_at,
-            ext_registered_at,
-            ext_auto_renew,
-            metadata,
+        let domain = sqlx::query_as::<_, Domain>(
+            "INSERT OR REPLACE INTO domains (name, provider, external_id, ext_expiry_at, ext_registered_at, ext_auto_renew, metadata) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING name, provider, external_id, ext_expiry_at, ext_registered_at, ext_auto_renew, metadata, created_at, updated_at"
         )
+        .bind(&name)
+        .bind(&provider)
+        .bind(&external_id)
+        .bind(&ext_expiry_at)
+        .bind(&ext_registered_at)
+        .bind(&ext_auto_renew)
+        .bind(&metadata)
         .fetch_one(&state.database.pool)
         .await?;
 

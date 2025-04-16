@@ -111,7 +111,6 @@ jobs:
             working-directory: ./app
             env:
                 BINARY_NAME: ${{ env.APP_BINARY_NAME }}
-                SQLX_OFFLINE: true
                 CROSS_CONFIG: cross.toml
                 CROSS_CONTAINER_OPTS: --volume ${{ github.workspace }}/.git:/project/.git:ro
                 CROSS_BUILD_OPTS: --volume ${{ github.workspace }}/.git:/project/.git:ro

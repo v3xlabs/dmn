@@ -2,12 +2,16 @@ use crate::{cache::AppCache, database::Database, modules::{cloudflare::Cloudflar
 use figment::{providers::Env, Figment};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::env;
+use std::path::PathBuf;
+use dirs;
+use shellexpand;
 
 pub type AppState = Arc<AppStateInner>;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DatabaseConfig {
-    pub url: String,
+    pub url: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -28,11 +32,20 @@ impl AppStateInner {
         // Load configuration from environment variables
         let config_file = Figment::new();
 
-        let database_config = Figment::new()
-            .merge(Env::prefixed("DATABASE_"))
-            .extract::<DatabaseConfig>()
-            .expect("Failed to load database configuration");
-
+        // Determine database URL: prefer DATABASE_URL, else DMN_DB_PATH, else default
+        let database_url = if let Ok(url) = env::var("DATABASE_URL") {
+            url
+        } else {
+            let db_path = env::var("DMN_DB_PATH").unwrap_or_else(|_| {
+                let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
+                format!("{}/.config/dmn/sqlite", home.display())
+            });
+            // Ensure parent directory exists
+            let db_path = shellexpand::tilde(&db_path).to_string();
+            std::fs::create_dir_all(PathBuf::from(&db_path).parent().unwrap()).ok();
+            format!("sqlite://{}", db_path)
+        };
+        let database_config = DatabaseConfig { url: Some(database_url) };
         let database = Database::init(&database_config).await;
 
         let jwt = Figment::new()
