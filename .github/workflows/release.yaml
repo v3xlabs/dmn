@@ -130,6 +130,7 @@ jobs:
           - name: Rename binary for release
             run: |
                 cp app/target/${{ matrix.platform.arch }}/release/${{ env.APP_BINARY_NAME }} app/target/${{ matrix.platform.arch }}/release/${{ env.APP_BINARY_NAME }}-${{ matrix.platform.arch }}
+                tree app/target
 
           - name: Upload binary to GitHub Release
             uses: softprops/action-gh-release@v2
