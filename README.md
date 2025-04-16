@@ -4,15 +4,14 @@
 
 a lightweight domain management daemon
 
-## Provider Support
-
-| Provider   | Domains                 | DNS                                                              |
-| ---------- | ----------------------- | ---------------------------------------------------------------- |
-| Porkbun    | ✅ Implemented          | ❌ Not implemented yet                                           |
-| Cloudflare | ✅ Using Global API Key | ✅ Using Token API Key (DNS::Read, Zone::Read) or Global API Key |
-| ...        | ...                     | ...                                                              |
-
 ## Installation
+
+### Binary
+
+You can download the binary from the [releases page](https://github.com/v3xlabs/dmn/releases).
+The binary can be used as a cli tool or as a service when invoked as `dmn server`.
+
+### Docker
 
 Simply copy over the `compose.yml` file to your server and run it.
 
@@ -21,36 +20,20 @@ Simply copy over the `compose.yml` file to your server and run it.
 name: dmn
 services:
   dmn:
-    image: ghcr.io/v3xlabs/dmn:edge
+    image: ghcr.io/v3xlabs/dmn:0.0.1
     environment:
       DATABASE_URL: sqlite://data/sqlite.db
       JWT_SECRET: abc123
       PORKBUN_API_KEY: abc123
       CLOUDFLARE_API_KEY: abc123
       RUST_LOG: info
+    volumes:
+      - ./sqlite.db:/data/sqlite.db
     ports:
       - "3000:3000"
-
-```
-
-And then when you're ready to start the daemon, run the following command:
-
-```bash
-docker compose up -d
 ```
 
 ## Configuration
-
-The `compose.yml` file contains a `config.toml` file that you can use to configure the daemon.
-
-```toml
-[porkbun]
-api_key = "your_api_key"
-
-[cloudflare]
-api_key = "your_api_key"
-dns = true
-```
 
 ### Cloudflare Token
 
@@ -68,9 +51,23 @@ This is due to cloudflare lacking a read-only domain API scope.
 
 To get a porkbun api key visit [the dashboard](https://porkbun.com/account/api).
 
+## Provider Support
+
+| Provider   | Domains                 | DNS                                                              |
+| ---------- | ----------------------- | ---------------------------------------------------------------- |
+| Porkbun    | ✅ Implemented          | ❌ Not implemented yet                                           |
+| Cloudflare | ✅ Using Global API Key | ✅ Using Token API Key (DNS::Read, Zone::Read) or Global API Key |
+| ...        | ...                     | ...                                                              |
+
 ## Usage
 
 The daemon will automatically keep track of your domains notifying you of new additions, deletions, expiry reminders, and other notifications.
+
+- `dmn porkbun index` - Index your porkbun domains
+- `dmn cloudflare index` - Index your cloudflare domains
+- `dmn domains ls` - List all domains
+- `dmn whois example.com` - Get the whois information for a domain
+- `dmn server` - Start the daemon in server mode
 
 ## API Documentation
 

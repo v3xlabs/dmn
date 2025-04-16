@@ -1,13 +1,16 @@
 # DMN - A lightweight domain management service
 name: dmn
 services:
-  dmn:
-    image: ghcr.io/v3xlabs/dmn:edge
-    environment:
-      DATABASE_URL: sqlite://data/sqlite.db
-      JWT_SECRET: abc123
-      PORKBUN_API_KEY: abc123
-      CLOUDFLARE_API_KEY: abc123
-      RUST_LOG: info
-    ports:
-      - "3000:3000"
+    dmn:
+        image: ghcr.io/v3xlabs/dmn:edge
+        environment:
+            DATABASE_URL: sqlite://data/sqlite.db
+            JWT_SECRET: abc123
+            PORKBUN_API_KEY: abc123
+            CLOUDFLARE_API_KEY: abc123
+            RUST_LOG: info
+        # Uncomment to use a persistent database (you probably want this)
+        # volumes:
+        #  - ./sqlite.db:/data/sqlite.db
+        ports:
+            - "3000:3000"
