@@ -50,7 +50,7 @@ async-std = { version = "1.13.0", features = ["attributes", "tokio1"] }
 # build-info = "0.0.39"
 # futures = "0.3.31"
 # parallel-stream = "2.1.3"
-figment = { version = "0", features = ["env", "serde_json"] }
+figment = { version = "0", features = ["env", "serde_json", "toml"] }
 # prometheus = "0.13.4"
 # hmac = "0.12.1"
 # time = "0.3.37"
@@ -101,6 +101,7 @@ regex = "1.11.0"
 chrono-humanize = "0.2.3"
 yew = { version = "0.21.0", features = ["ssr"] }
 maud = "0.26"
+icalendar = "0.16.13"
 
 [build-dependencies]
 build-info-build = "0.0.39"

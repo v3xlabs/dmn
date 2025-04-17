@@ -9,3 +9,7 @@ svg {
     height: 1em;
     vertical-align: -0.125em;
 }
+
+.card {
+    @apply border-gray-500 p-8 rounded-md border bg-white;
+}

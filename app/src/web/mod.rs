@@ -45,49 +45,50 @@ pub async fn web_endpoint(state: Data<&AppState>) -> poem_openapi::payload::Html
             head {
                 meta charset="utf-8";
                 meta name="viewport" content="width=device-width, initial-scale=1.0";
-                title { "Domains" }
+                title { "My Domains | dmn" }
                 style { (include_str!("./dist/index.css")) }
             }
             body class="w-full min-h-screen bg-gray-100 p-4 overflow-y-auto font-sans" {
-                div class="w-full max-w-screen-md mx-auto md:mt-16 bg-white rounded-md border border-gray-200 p-8" {
-                    div class="flex gap-4" {
-                        h1 class="text-2xl font-bold" { "Hello, World!" }
+                div class="w-full max-w-screen-md mx-auto flex flex-col gap-4" {
+                    div class="flex gap-4 card" {
+                        h1 class="text-2xl font-bold" { "dmn" }
                     }
-                    p { "Your domains:" }
-                    table class="table-auto w-full mt-4" {
-                        thead {
-                            tr class="text-left" {
-                                th { "Provider" }
-                                th { "Name" }
-                                th { "Expiry" }
-                                th { "Registered" }
-                                th { "Auto Renew" }
+                    div class="card" {
+                        table class="table-auto w-full" {
+                            thead {
+                                tr class="text-left" {
+                                    th { "Provider" }
+                                    th { "Name" }
+                                    th { "Expiry" }
+                                    th { "Registered" }
+                                    th { "Auto Renew" }
+                                }
                             }
-                        }
-                        tbody {
-                            @for domain in &domains {
-                                tr {
-                                    td class={ (provider_to_color(&domain.provider)) " text-xs" } { (domain.provider) }
-                                    td { (domain.name) }
-                                    td {
-                                        div class={(expiry_to_color(&domain.ext_expiry_at)) " text-xs"} {
-                                            (domain.ext_expiry_at.map(|dt| HumanTime::from(dt).to_string()).unwrap_or("-".to_string()))
+                            tbody {
+                                @for domain in &domains {
+                                    tr {
+                                        td class={ (provider_to_color(&domain.provider)) " text-xs" } { (domain.provider) }
+                                        td { (domain.name) }
+                                        td {
+                                            div class={(expiry_to_color(&domain.ext_expiry_at)) " text-xs"} {
+                                                (domain.ext_expiry_at.map(|dt| HumanTime::from(dt).to_string()).unwrap_or("-".to_string()))
+                                            }
+                                            div class="text-xs text-gray-500" {
+                                                (domain.ext_expiry_at.map(|dt| dt.format("%d/%m/%y - %-I %P").to_string()).unwrap_or("-".to_string()))
+                                            }
                                         }
-                                        div class="text-xs text-gray-500" {
-                                            (domain.ext_expiry_at.map(|dt| dt.format("%d/%m/%y - %-I %P").to_string()).unwrap_or("-".to_string()))
+                                        td {
+                                            div class={"text-xs"} {
+                                                (domain.ext_expiry_at.map(|dt| HumanTime::from(dt).to_string()).unwrap_or("-".to_string()))
+                                            }
+                                            div class="text-xs text-gray-500" {
+                                                (domain.ext_expiry_at.map(|dt| dt.format("%d/%m/%y - %-I %P").to_string()).unwrap_or("-".to_string()))
+                                            }
                                         }
-                                    }
-                                    td {
-                                        div class={"text-xs"} {
-                                            (domain.ext_expiry_at.map(|dt| HumanTime::from(dt).to_string()).unwrap_or("-".to_string()))
-                                        }
-                                        div class="text-xs text-gray-500" {
-                                            (domain.ext_expiry_at.map(|dt| dt.format("%d/%m/%y - %-I %P").to_string()).unwrap_or("-".to_string()))
-                                        }
-                                    }
-                                    td {
-                                        div class={"" (if domain.ext_auto_renew.unwrap_or(false) { "text-green-500" } else { "text-red-500" })} {
-                                            (icon)
+                                        td {
+                                            div class={"" (if domain.ext_auto_renew.unwrap_or(false) { "text-green-500" } else { "text-red-500" })} {
+                                                (icon)
+                                            }
                                         }
                                     }
                                 }

@@ -4,7 +4,7 @@ use crate::{
     modules::{cloudflare::CloudflareService, porkbun::PorkbunService},
 };
 use dirs;
-use figment::{providers::Env, Figment};
+use figment::{providers::{Env, Format, Toml}, Figment};
 use serde::{Deserialize, Serialize};
 use shellexpand;
 use std::env;
@@ -32,11 +32,18 @@ pub struct AppStateInner {
 }
 
 impl AppStateInner {
-    pub async fn init(optimistic: bool) -> Self {
+    pub async fn init(server: bool) -> Self {
         // Load configuration from environment variables
-        let config_file = Figment::new();
+        let config_file = if server {
+            // read from `~/.config/dmn/config.toml`
+            let config_dir = dirs::config_dir().unwrap();
+            let config_file = config_dir.join("config.toml");
+            Figment::new().merge(Toml::file(config_file))
+        } else {
+            Figment::new()
+        };
 
-        // Determine database URL: prefer DATABASE_URL, else default
+        // Determine database URL: prefer DMN_DATABASE_URL, else default
         let database_config = Figment::new()
             .merge(Env::prefixed("DMN_DATABASE_"))
             .extract::<DatabaseConfig>()
@@ -49,14 +56,14 @@ impl AppStateInner {
         {
             Ok(Some(api)) => Some(api),
             Ok(None) => {
-                if optimistic {
+                if server {
                     panic!("Failed to load API config");
                 } else {
                     None
                 }
             }
             Err(error) => {
-                if optimistic {
+                if server {
                     panic!("Failed to load API config: {}", error);
                 } else {
                     None
@@ -66,12 +73,12 @@ impl AppStateInner {
 
         let cache = AppCache::new();
 
-        let porkbun = if optimistic {
+        let porkbun = if server {
             PorkbunService::try_init(&config_file).await
         } else {
             None
         };
-        let cloudflare = if optimistic {
+        let cloudflare = if server {
             CloudflareService::try_init(&config_file).await
         } else {
             None

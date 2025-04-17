@@ -1,5 +1,6 @@
 use std::{num::NonZero, sync::Arc};
 
+use cal::CalApi;
 use domains::DomainApi;
 use governor::Quota;
 use poem::{
@@ -16,6 +17,7 @@ use crate::{state::AppState, web};
 
 pub mod domains;
 pub mod ratelimit;
+pub mod cal;
 
 #[derive(Tags)]
 pub enum ApiTags {
@@ -26,7 +28,7 @@ pub enum ApiTags {
 }
 
 fn get_api(state: AppState) -> impl OpenApi {
-    DomainApi
+    (DomainApi, CalApi)
 }
 
 #[derive(Debug, Clone)]
