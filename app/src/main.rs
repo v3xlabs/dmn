@@ -6,7 +6,6 @@ use models::domain::Domain;
 use modules::{
     cloudflare::CloudflareService, porkbun::PorkbunService, whois::whois, DomainService,
 };
-use serde_json::Value;
 use state::{AppState, AppStateInner};
 use std::sync::Arc;
 
@@ -16,6 +15,7 @@ pub mod models;
 pub mod modules;
 pub mod server;
 pub mod state;
+pub mod web;
 pub mod util;
 
 pub type Error = anyhow::Error;

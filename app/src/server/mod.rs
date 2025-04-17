@@ -12,7 +12,7 @@ use ratelimit::GovRateLimitMiddleware;
 use serde_json::Value;
 use tracing::info;
 
-use crate::state::AppState;
+use crate::{state::AppState, web};
 
 pub mod domains;
 pub mod ratelimit;
@@ -157,13 +157,13 @@ pub async fn start_http(state: AppState) {
 
     let path = std::path::Path::new("./www");
 
-    let spa_endpoint = StaticFilesEndpoint::new(path)
-        .show_files_listing()
-        .index_file("index.html")
-        .fallback_to_index();
+    // let spa_endpoint = StaticFilesEndpoint::new(path)
+    //     .show_files_listing()
+    //     .index_file("index.html")
+    //     .fallback_to_index();
 
     let app = Route::new()
-        .nest("/", spa_endpoint)
+        .nest("/", web::web_endpoint)
         .nest("/openapi.json", spec_route)
         // .at("/prom", get(prom::route))
         .nest("/docs", get(get_openapi_docs))
