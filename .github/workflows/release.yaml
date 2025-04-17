@@ -1,296 +1,323 @@
 on:
-  push:
-      branches:
-          - master
-      tags:
-          - v*
+    push:
+        branches:
+            - master
+        tags:
+            - v*
 
 env:
-  REGISTRY: ghcr.io
-  APP_IMAGE_NAME: v3xlabs/dmn
-  APP_BINARY_NAME: dmn
-  DOCKER_BUILDKIT: 1
-  COMPOSE_DOCKER_CLI_BUILD: 1
+    REGISTRY: ghcr.io
+    APP_IMAGE_NAME: v3xlabs/dmn
+    APP_BINARY_NAME: dmn
+    DOCKER_BUILDKIT: 1
+    COMPOSE_DOCKER_CLI_BUILD: 1
 
 jobs:
-  # build-web:
-  #     runs-on: ubuntu-latest
-  #     steps:
-  #         - name: Checkout
-  #           uses: actions/checkout@v4
+    # build-web:
+    #     runs-on: ubuntu-latest
+    #     steps:
+    #         - name: Checkout
+    #           uses: actions/checkout@v4
 
-  #         # Setup Node & PNPM
-  #         - name: Setup PNPM
-  #           uses: pnpm/action-setup@v4
-  #           with:
-  #               run_install: false
-  #               standalone: true
-  #               package_json_file: web/package.json
-  #               version: 8
+    #         # Setup Node & PNPM
+    #         - name: Setup PNPM
+    #           uses: pnpm/action-setup@v4
+    #           with:
+    #               run_install: false
+    #               standalone: true
+    #               package_json_file: web/package.json
+    #               version: 8
 
-  #         - name: Setup Node
-  #           uses: actions/setup-node@main
-  #           with:
-  #               node-version: 21
-  #               cache: pnpm
-  #               cache-dependency-path: "web"
+    #         - name: Setup Node
+    #           uses: actions/setup-node@main
+    #           with:
+    #               node-version: 21
+    #               cache: pnpm
+    #               cache-dependency-path: "web"
 
-  #         - name: Install dependencies
-  #           working-directory: web
-  #           run: pnpm install
+    #         - name: Install dependencies
+    #           working-directory: web
+    #           run: pnpm install
 
-  #         - name: Build web for production
-  #           working-directory: web
-  #           env:
-  #               NODE_ENV: production
-  #           run: pnpm build
+    #         - name: Build web for production
+    #           working-directory: web
+    #           env:
+    #               NODE_ENV: production
+    #           run: pnpm build
 
-  #         - name: Upload web artifacts
-  #           uses: actions/upload-artifact@v4
-  #           with:
-  #               name: www
-  #               path: web/dist
-  #               retention-days: 1
-  #               compression-level: 9
+    #         - name: Upload web artifacts
+    #           uses: actions/upload-artifact@v4
+    #           with:
+    #               name: www
+    #               path: web/dist
+    #               retention-days: 1
+    #               compression-level: 9
 
-  build-app:
-      strategy:
-          matrix:
-              platform:
-                  - arch: x86_64-unknown-linux-gnu
-                  - arch: x86_64-unknown-linux-musl
-                  - arch: aarch64-unknown-linux-musl
-      timeout-minutes: 20 # Prevent hanging builds
-      runs-on: ubuntu-latest
-      permissions:
-          contents: write
-      steps:
-          - name: Checkout
-            uses: actions/checkout@v4
-            # with:
-                # fetch-tags: true
+    build-app:
+        strategy:
+            matrix:
+                platform:
+                    - arch: x86_64-unknown-linux-gnu
+                    - arch: x86_64-unknown-linux-musl
+                    - arch: aarch64-unknown-linux-musl
+        timeout-minutes: 20 # Prevent hanging builds
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              # with:
+              # fetch-tags: true
 
-          # Set up Rust with the specific target we need
-          - name: Install Rust
-            run: rustup toolchain install stable --profile minimal --no-self-update
+            # Set up Rust with the specific target we need
+            - name: Install Rust
+              run: rustup toolchain install stable --profile minimal --no-self-update
 
-          # Speed up builds by caching dependencies
-          - name: Cache Rust
-            uses: Swatinem/rust-cache@v2
-            with:
-                workspaces: app
-                key: ${{ matrix.platform.arch }}
+            # Speed up builds by caching dependencies
+            - name: Cache Rust
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: app
+                  key:
+                      ${{ matrix.platform.arch }}
 
-          # Install cross
-          - name: Install cross
-            run: cargo install cross
+            # Setup Node & PNPM
+            - name: Setup PNPM
+              uses: pnpm/action-setup@v4
+              with:
+                  run_install: false
+                  standalone: true
+                  package_json_file: app/src/web/package.json
+                  version: 8
 
-          # Update version number in app/Cargo.toml
-          # If tag is a release use that
-          # Otherwise use the version number in the app/Cargo.toml and append it with -beta
-          - name: Update version number
-            run: |
-                if [[ "${{ github.ref }}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
-                  VERSION=${GITHUB_REF#refs/tags/v}
-                  echo "Release tag detected, using version: $VERSION"
-                  sed -i "0,/^version = .*/s//version = \"${VERSION}\"/" app/Cargo.toml
-                else
-                  echo "No release tag detected, using version from Cargo.toml"
-                  # parse version from Cargo.toml using regex
-                  version=$(grep -oP 'version = "([^"]+?)"' app/Cargo.toml | head -n 1 | sed 's/^version = "\(.*\)"$/\1/')
-                  echo "Current version: $version"
-                  if [[ "$version" == *"-beta"* ]]; then
-                      final_version="$version"
+            - name: Setup Node
+              uses: actions/setup-node@main
+              with:
+                  node-version: 21
+                  cache: pnpm
+                  cache-dependency-path: "app/src/web"
+
+            - name: Install dependencies
+              working-directory: app/src/web
+              run: pnpm install
+
+            - name: Build web for production
+              working-directory: app/src/web
+              env:
+                  NODE_ENV: production
+              run: pnpm build
+
+            # Install cross
+            - name: Install cross
+              run: cargo install cross
+
+            # Update version number in app/Cargo.toml
+            # If tag is a release use that
+            # Otherwise use the version number in the app/Cargo.toml and append it with -beta
+            - name: Update version number
+              run: |
+                  if [[ "${{ github.ref }}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
+                    VERSION=${GITHUB_REF#refs/tags/v}
+                    echo "Release tag detected, using version: $VERSION"
+                    sed -i "0,/^version = .*/s//version = \"${VERSION}\"/" app/Cargo.toml
                   else
-                      final_version="${version}-beta"
+                    echo "No release tag detected, using version from Cargo.toml"
+                    # parse version from Cargo.toml using regex
+                    version=$(grep -oP 'version = "([^"]+?)"' app/Cargo.toml | head -n 1 | sed 's/^version = "\(.*\)"$/\1/')
+                    echo "Current version: $version"
+                    if [[ "$version" == *"-beta"* ]]; then
+                        final_version="$version"
+                    else
+                        final_version="${version}-beta"
+                    fi
+                    sed -i "0,/^version = .*/s//version = \"${final_version}\"/" app/Cargo.toml
                   fi
-                  sed -i "0,/^version = .*/s//version = \"${final_version}\"/" app/Cargo.toml
-                fi
 
-          # 🔨 Build our static binary
-          - name: Build Rust binary
-            working-directory: ./app
-            env:
-                BINARY_NAME: ${{ env.APP_BINARY_NAME }}
-                CROSS_CONFIG: cross.toml
-                CROSS_CONTAINER_OPTS: --volume ${{ github.workspace }}/.git:/project/.git:ro
-                CROSS_BUILD_OPTS: --volume ${{ github.workspace }}/.git:/project/.git:ro
-            run: cross build --target ${{ matrix.platform.arch }} --release
+            # 🔨 Build our static binary
+            - name: Build Rust binary
+              working-directory: ./app
+              env:
+                  BINARY_NAME: ${{ env.APP_BINARY_NAME }}
+                  CROSS_CONFIG: cross.toml
+                  CROSS_CONTAINER_OPTS: --volume ${{ github.workspace }}/.git:/project/.git:ro
+                  CROSS_BUILD_OPTS: --volume ${{ github.workspace }}/.git:/project/.git:ro
+              run: cross build --target ${{ matrix.platform.arch }} --release
 
-          # 📦 Save our binary for later
-          - name: Upload built binary as artifact
-            uses: actions/upload-artifact@v4
-            with:
-                name: app-${{ matrix.platform.arch }}
-                path: app/target/${{ matrix.platform.arch }}/release/${{ env.APP_BINARY_NAME }}
-                retention-days: 1
-                compression-level: 9
+            # 📦 Save our binary for later
+            - name: Upload built binary as artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: app-${{ matrix.platform.arch }}
+                  path: app/target/${{ matrix.platform.arch }}/release/${{ env.APP_BINARY_NAME }}
+                  retention-days: 1
+                  compression-level: 9
 
-          - name: Rename binary for release
-            run: |
-                tree app/target
-                cp app/target/${{ matrix.platform.arch }}/release/${{ env.APP_BINARY_NAME }} app/target/${{ matrix.platform.arch }}/release/${{ env.APP_BINARY_NAME }}-${{ matrix.platform.arch }}
+            - name: Rename binary for release
+              run: |
+                  tree app/target
+                  cp app/target/${{ matrix.platform.arch }}/release/${{ env.APP_BINARY_NAME }} app/target/${{ matrix.platform.arch }}/release/${{ env.APP_BINARY_NAME }}-${{ matrix.platform.arch }}
 
-          - name: Upload binary to GitHub Release
-            uses: softprops/action-gh-release@v2
-            if: startsWith(github.ref, 'refs/tags/v')
-            with:
-              tag_name: ${{ github.ref_name }}
-              files: app/target/${{ matrix.platform.arch }}/release/${{ env.APP_BINARY_NAME }}-${{ matrix.platform.arch }}
-              fail_on_unmatched_files: false
-              # if tag has `-` then it's a prerelease
-              prerelease: ${{ contains(github.ref, '-') }}
+            - name: Upload binary to GitHub Release
+              uses: softprops/action-gh-release@v2
+              if: startsWith(github.ref, 'refs/tags/v')
+              with:
+                  tag_name: ${{ github.ref_name }}
+                  files: app/target/${{ matrix.platform.arch }}/release/${{ env.APP_BINARY_NAME }}-${{ matrix.platform.arch }}
+                  fail_on_unmatched_files: false
+                  # if tag has `-` then it's a prerelease
+                  prerelease: ${{ contains(github.ref, '-') }}
 
-  docker-build:
-      runs-on: ubuntu-latest
-      permissions:
-          contents: read
-          packages: write
-      needs: # Wait for other jobs to finish
-          - build-app
-          # - build-web
-      strategy:
-          matrix:
-              platform:
-                  - arch: x86_64-unknown-linux-musl
-                    docker: linux/amd64
-                  - arch: aarch64-unknown-linux-musl
-                    docker: linux/arm64
-      steps:
-          - name: Checkout
-            uses: actions/checkout@v4
+    docker-build:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
+        needs: # Wait for other jobs to finish
+            - build-app
+            # - build-web
+        strategy:
+            matrix:
+                platform:
+                    - arch: x86_64-unknown-linux-musl
+                      docker: linux/amd64
+                    - arch: aarch64-unknown-linux-musl
+                      docker: linux/arm64
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
 
-          # 📥 Grab our built binary
-          - name: Download built binary
-            uses: actions/download-artifact@v4
-            id: app-binary
-            with:
-                name: app-${{ matrix.platform.arch }}
-                path: artifacts
+            # 📥 Grab our built binary
+            - name: Download built binary
+              uses: actions/download-artifact@v4
+              id: app-binary
+              with:
+                  name: app-${{ matrix.platform.arch }}
+                  path: artifacts
 
-          - name: Prepare artifacts
-            run: |
-                chmod 755 ./artifacts/dmn
-                ls -la ./artifacts
+            - name: Prepare artifacts
+              run: |
+                  chmod 755 ./artifacts/dmn
+                  ls -la ./artifacts
 
-          # - name: Download web artifacts
-          #   uses: actions/download-artifact@v4
-          #   with:
-          #       name: www
-          #       path: artifacts/www
+            # - name: Download web artifacts
+            #   uses: actions/download-artifact@v4
+            #   with:
+            #       name: www
+            #       path: artifacts/www
 
-          # Set up QEMU for multi-arch builds
-          - name: Set up QEMU
-            uses: docker/setup-qemu-action@v3
+            # Set up QEMU for multi-arch builds
+            - name: Set up QEMU
+              uses: docker/setup-qemu-action@v3
 
-          # Set up Docker Buildx
-          - name: Set up Docker Buildx
-            uses: docker/setup-buildx-action@v3
+            # Set up Docker Buildx
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
 
-          # Log into GitHub's container registry
-          - name: Log in to the Container registry
-            uses: docker/login-action@v3
-            with:
-                registry: ${{ env.REGISTRY }}
-                username: ${{ github.actor }}
-                password: ${{ secrets.GITHUB_TOKEN }}
+            # Log into GitHub's container registry
+            - name: Log in to the Container registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
 
-          # Extract metadata
-          - name: Extract metadata (tags, labels) for Docker
-            id: meta
-            uses: docker/metadata-action@v5
-            with:
-                images: ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}
+            # Extract metadata
+            - name: Extract metadata (tags, labels) for Docker
+              id: meta
+              uses: docker/metadata-action@v5
+              with:
+                  images: ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}
 
-          - name: Ls artifacts
-            run: ls -la ./artifacts
+            - name: Ls artifacts
+              run: ls -la ./artifacts
 
-          # 🚀 Build and push multi-arch Docker image
-          - name: Build Docker digests
-            uses: docker/build-push-action@v6
-            id: build
-            with:
-                context: ./artifacts
-                file: ./app/Dockerfile
-                platforms: ${{ matrix.platform.docker }}
-                labels: ${{ steps.meta.outputs.labels }}
-                annotations: ${{ steps.meta.outputs.annotations }}
+            # 🚀 Build and push multi-arch Docker image
+            - name: Build Docker digests
+              uses: docker/build-push-action@v6
+              id: build
+              with:
+                  context: ./artifacts
+                  file: ./app/Dockerfile
+                  platforms: ${{ matrix.platform.docker }}
+                  labels: ${{ steps.meta.outputs.labels }}
+                  annotations: ${{ steps.meta.outputs.annotations }}
 
-                outputs: type=image,name=${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+                  outputs: type=image,name=${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
 
-                build-args: |
-                    BINARY_PATH=./dmn
-                cache-from: type=gha
-                cache-to: type=gha,mode=max
+                  build-args: |
+                      BINARY_PATH=./dmn
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
 
-          - name: Export digest
-            run: |
-                mkdir -p /tmp/digests
-                digest="${{ steps.build.outputs.digest }}"
-                touch "/tmp/digests/${digest#sha256:}"
+            - name: Export digest
+              run: |
+                  mkdir -p /tmp/digests
+                  digest="${{ steps.build.outputs.digest }}"
+                  touch "/tmp/digests/${digest#sha256:}"
 
-          - name: Upload digest
-            uses: actions/upload-artifact@v4
-            with:
-                name: digests-${{ matrix.platform.arch }}
-                path: /tmp/digests/*
-                if-no-files-found: error
-                retention-days: 1
+            - name: Upload digest
+              uses: actions/upload-artifact@v4
+              with:
+                  name: digests-${{ matrix.platform.arch }}
+                  path: /tmp/digests/*
+                  if-no-files-found: error
+                  retention-days: 1
 
-  # 🐳 Final job: Merge multi-arch digests into a single artifact
-  docker-merge:
-      runs-on: ubuntu-latest
-      if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
-      permissions:
-          contents: read
-          packages: write
-          attestations: write # For security attestations
-          id-token: write
-      needs: # Wait for other jobs to finish
-          - docker-build
-      steps:
-          - name: Checkout
-            uses: actions/checkout@v4
+    # 🐳 Final job: Merge multi-arch digests into a single artifact
+    docker-merge:
+        runs-on: ubuntu-latest
+        if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
+        permissions:
+            contents: read
+            packages: write
+            attestations: write # For security attestations
+            id-token: write
+        needs: # Wait for other jobs to finish
+            - docker-build
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
 
-          # 📥 Grab our digests
-          - name: Download digests
-            uses: actions/download-artifact@v4
-            with:
-                path: /tmp/digests
-                pattern: digests-*
-                merge-multiple: true
+            # 📥 Grab our digests
+            - name: Download digests
+              uses: actions/download-artifact@v4
+              with:
+                  path: /tmp/digests
+                  pattern: digests-*
+                  merge-multiple: true
 
-          # Log into GitHub's container registry
-          - name: Log in to the Container registry
-            uses: docker/login-action@v3
-            with:
-                registry: ${{ env.REGISTRY }}
-                username: ${{ github.actor }}
-                password: ${{ secrets.GITHUB_TOKEN }}
+            # Log into GitHub's container registry
+            - name: Log in to the Container registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
 
-          # Set up Docker Buildx
-          - name: Set up Docker Buildx
-            uses: docker/setup-buildx-action@v3
+            # Set up Docker Buildx
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
 
-          # Extract metadata
-          - name: Extract metadata (tags, labels) for Docker
-            id: meta
-            uses: docker/metadata-action@v5
-            with:
-                images: ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}
-                tags: |
-                    type=semver,pattern={{version}}
-                    type=semver,pattern={{major}}.{{minor}}
-                    type=semver,pattern={{major}}
-                    type=edge
-                    type=sha
+            # Extract metadata
+            - name: Extract metadata (tags, labels) for Docker
+              id: meta
+              uses: docker/metadata-action@v5
+              with:
+                  images: ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}
+                  tags: |
+                      type=semver,pattern={{version}}
+                      type=semver,pattern={{major}}.{{minor}}
+                      type=semver,pattern={{major}}
+                      type=edge
+                      type=sha
 
-          - name: Create manifest list and push
-            working-directory: /tmp/digests
-            run: |
-                docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-                $(printf '${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}@sha256:%s ' *)
+            - name: Create manifest list and push
+              working-directory: /tmp/digests
+              run: |
+                  docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+                  $(printf '${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}@sha256:%s ' *)
 
-          - name: Inspect image
-            run: |
-                docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+            - name: Inspect image
+              run: |
+                  docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:${{ steps.meta.outputs.version }}

@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+:root {
+    font-size: 16px;
+}
+
+svg {
+    width: auto;
+    height: 1em;
+    vertical-align: -0.125em;
+}

@@ -1,0 +1,17 @@
+{
+  "name": "web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "pnpx @tailwindcss/cli -i ./public/index.css -o ./dist/index.css",
+    "watch": "pnpx @tailwindcss/cli -i ./public/index.css -o ./dist/index.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^4.1.4",
+    "@tailwindcss/cli": "^4.1.4"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "GPL-3.0-only"
+}
