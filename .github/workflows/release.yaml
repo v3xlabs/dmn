@@ -58,7 +58,6 @@ jobs:
           matrix:
               platform:
                   - arch: x86_64-unknown-linux-gnu
-                  - arch: x86_64-pc-windows-gnu
                   - arch: x86_64-unknown-linux-musl
                   - arch: aarch64-unknown-linux-musl
       timeout-minutes: 20 # Prevent hanging builds
