@@ -22,14 +22,6 @@ enum CalendarResponse {
     Ok(IcsContent),
 }
 
-const SAMPLE_ICS: &str = include_str!("../web/public/sample.ics");
-
-impl Example for IcsContent {
-    fn example() -> Self {
-        Self::Calendar(PlainText(SAMPLE_ICS.to_string()))
-    }
-}
-
 pub struct CalApi;
 
 #[OpenApi]

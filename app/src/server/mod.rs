@@ -138,7 +138,7 @@ fn add_ics_example(json: &str) -> String {
     // A simple example .ics content.
     // replace "\n" with "\\n"
     // replace newlines with "\n"
-    let ics_example = include_str!("../web/public/sample.ics")
+    let ics_example = include_str!("../../../samples/domains.ics")
         .replace("\\n", "\\\\n")
         .replace("\n", "\\n")
         .replace("\r", "");
