@@ -2,7 +2,7 @@
 
 [![Docker Image 16MB](https://img.shields.io/badge/Docker%20Image-%3C16MB-brightgreen)](https://ghcr.io/v3xlabs/dmn) ![Porkbun Support](https://img.shields.io/badge/Porkbun-Supported-EF7878?logo=porkbun) ![Cloudflare Support](https://img.shields.io/badge/Cloudflare-Supported-F38020?logo=cloudflare) ![Docs using OpenAPI](https://img.shields.io/badge/Docs-OpenAPI-brightgreen?logo=swagger)
 
-a lightweight domain management daemon
+A lightweight domain management daemon
 
 ## Installation
 
@@ -37,9 +37,13 @@ services:
 The daemon will automatically keep track of your domains notifying you of new additions, deletions, expiry reminders, and other notifications.
 
 -   `dmn ls` - List all domains
--   `dmn porkbun index` - Index your porkbun domains
--   `dmn cloudflare index` - Index your cloudflare domains
--   `dmn whois example.com` - Get the whois information for a domain
+-   `dmn porkbun`
+    -   `dmn porkbun index` - Index your porkbun domains
+-   `dmn cloudflare`
+    -   `dmn cloudflare index` - Index your cloudflare domains
+-   `dmn whois`
+    -   `dmn whois example.com` - Get the whois information example.com
+    - `dmn whois --json example.com`
 -   `dmn server` - Start the daemon in server mode
 
 ## Provider Support
@@ -61,24 +65,6 @@ You can configure the daemon by providing any of the configuration variables as 
 | RSS        | Optional                 | expiry & registration rss generation (`rss.xml` format) |
 | Porkbun    | Optional                 | domains & dns                                           |
 | Cloudflare | Optional                 | domains & dns                                           |
-
-### Cloudflare Token
-
-When creating a cloudflare token visit [the dashboard](https://dash.cloudflare.com/profile/api-tokens) and create a new token with the following permissions:
-
--   Zone: Zone Read
--   Zone: DNS Read
-
-For most purposes you will want to select `Include All Zones`, however if you wish to limit the scope of the token you are more then welcome to.
-
-If you wish you use `domains` however you will need to use your `Global API Key` which you can find in the dashboard.
-This is due to cloudflare lacking a read-only domain API scope.
-
-### Porkbun API Key
-
-To get a porkbun api key visit [the dashboard](https://porkbun.com/account/api).
-
-## Features
 
 ### Calendar
 
@@ -103,6 +89,24 @@ warn_before = "30 days"
 ```
 
 The feeds will be available at `http://<host>:3000/api/expiration.xml` and `http://<host>:3000/api/registration.xml`.
+
+### Providers
+
+#### Cloudflare Token
+
+When creating a cloudflare token visit [the dashboard](https://dash.cloudflare.com/profile/api-tokens) and create a new token with the following permissions:
+
+-   Zone: Zone Read
+-   Zone: DNS Read
+
+For most purposes you will want to select `Include All Zones`, however if you wish to limit the scope of the token you are more then welcome to.
+
+If you wish you use `domains` however you will need to use your `Global API Key` which you can find in the dashboard.
+This is due to cloudflare lacking a read-only domain API scope.
+
+#### Porkbun API Key
+
+To get a porkbun api key visit [the dashboard](https://porkbun.com/account/api).
 
 ## API Documentation
 
