@@ -9,6 +9,8 @@ use modules::{
 };
 use state::{AppState, AppStateInner};
 use std::sync::Arc;
+use std::io::Write;
+use std::process::{Command, Stdio};
 
 pub mod cache;
 pub mod database;
@@ -57,6 +59,8 @@ enum Commands {
         #[command(subcommand)]
         subcommand: CloudflareCommands,
     },
+    /// fzf extension
+    Fzf,
     /// Whois related commands
     Whois {
         /// The domain name to query
@@ -233,6 +237,41 @@ async fn main() -> Result<(), Error> {
                 _ => {
                     println!("Invalid output format: {}", output);
                 }
+            }
+        }
+        Commands::Fzf => {
+            let state: AppState = Arc::new(AppStateInner::init(false).await);
+            let domains = Domain::get_all(&state).await?;
+            let domain_names: Vec<String> = domains.iter().map(|d| d.name.clone()).collect();
+            let input_data = domain_names.join("\n");
+
+            // run fzf on the domain names
+            // in the preview window on the right, show the domain details
+            // the selected domain should be printed to stdout
+            let mut child = Command::new("fzf")
+                .arg("--preview")
+                .arg("dmn whois {}")
+                .arg("--preview-window")
+                .arg("right")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn()?;
+
+            if let Some(mut stdin) = child.stdin.take() {
+                stdin.write_all(input_data.as_bytes())?;
+            } // stdin is closed when `stdin` goes out of scope
+
+            let output = child.wait_with_output()?;
+
+            if output.status.success() {
+                let selected_domain = String::from_utf8(output.stdout)?.trim().to_string();
+                if !selected_domain.is_empty() {
+                    println!("{}", selected_domain);
+                }
+            } else {
+                // fzf returns non-zero exit code if cancelled (e.g., Esc)
+                // Print nothing or an error message if desired
+                // eprintln!("fzf command failed or was cancelled.");
             }
         }
         Commands::Porkbun { subcommand } => {

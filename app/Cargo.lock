@@ -1261,6 +1261,7 @@ dependencies = [
  "serde_with",
  "shellexpand",
  "sqlx",
+ "tempfile",
  "tracing",
  "tracing-futures",
  "tracing-log",

@@ -37,6 +37,7 @@ services:
 The daemon will automatically keep track of your domains notifying you of new additions, deletions, expiry reminders, and other notifications.
 
 -   `dmn ls` - List all domains
+-   `dmn fzf` - Fuzzy search for a domain
 -   `dmn porkbun`
     -   `dmn porkbun index` - Index your porkbun domains
 -   `dmn cloudflare`
