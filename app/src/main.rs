@@ -15,8 +15,8 @@ pub mod models;
 pub mod modules;
 pub mod server;
 pub mod state;
-pub mod web;
 pub mod util;
+pub mod web;
 
 pub type Error = anyhow::Error;
 
@@ -199,7 +199,9 @@ async fn main() -> Result<(), Error> {
             }
         }
         Commands::Whois { domain, json } => {
-            println!("Querying Whois for domain: {}", domain);
+            if !json {
+                println!("Querying Whois for domain: {}", domain);
+            }
             let result = whois(domain.clone(), *json).await?;
             println!("{}", result);
         }

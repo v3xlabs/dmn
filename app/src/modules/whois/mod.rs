@@ -20,12 +20,6 @@ pub struct WhoisResult {
 
 impl fmt::Display for WhoisResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(
-            f,
-            "\x1b[1;34mWhois Lookup for\x1b[0m: \x1b[1;33m{}\x1b[0m",
-            self.domain
-        )?;
-        writeln!(f, "\x1b[1;34m--- Whois Data ---\x1b[0m")?;
         writeln!(f, "{}", self.raw.trim())
     }
 }
@@ -251,7 +245,7 @@ fn json_raw(raw: &str) -> String {
     
     // return the hashmap and the extra lines as a json object
     let json = json!({
-        "map": map,
+        "data": map,
         "extra_lines": extra_lines
     });
     json.to_string()

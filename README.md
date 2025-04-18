@@ -43,7 +43,8 @@ The daemon will automatically keep track of your domains notifying you of new ad
     -   `dmn cloudflare index` - Index your cloudflare domains
 -   `dmn whois`
     -   `dmn whois example.com` - Get the whois information example.com
-    - `dmn whois --json example.com`
+    - `dmn whois --json example.com` - Get in json format
+      - `dmn whois --json > example.com > ./whois-example-com.json` - Get in json format and save to file
 -   `dmn server` - Start the daemon in server mode
 
 ## Provider Support
