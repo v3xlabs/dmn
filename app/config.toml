@@ -1,0 +1,20 @@
+[dmn]
+api_secret = "randomvalue"
+
+[dmn.database]
+# Database URL overwrites (optional)
+# Default is $CONFIG_DIR/db.sqlite
+# url = "sqlite://~/.config/dmn/db.sqlite"
+
+# ICS Calendar
+[calendar]
+enabled = true
+
+# Cloudflare Global API Key
+# [cloudflare]
+# api_key = ""
+# email = ""
+
+# Porkbun
+# [porkbun]
+# api_key = ""

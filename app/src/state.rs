@@ -7,6 +7,7 @@ use dirs;
 use figment::{providers::{Env, Format, Toml}, Figment};
 use serde::{Deserialize, Serialize};
 use shellexpand;
+use tracing::info;
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -37,7 +38,24 @@ impl AppStateInner {
         let config_file = if server {
             // read from `~/.config/dmn/config.toml`
             let config_dir = dirs::config_dir().unwrap();
-            let config_file = config_dir.join("config.toml");
+            let config_dmn_dir = config_dir.join("dmn");
+            
+            if !config_dmn_dir.exists() {
+                info!("Creating default config directory at {}", config_dmn_dir.display());
+                std::fs::create_dir_all(&config_dmn_dir).unwrap();
+            }
+
+            let config_file = config_dmn_dir.join("config.toml");
+
+            // if file doesnt exist create it by copying from hardcoded file `../config.toml`
+            if !config_file.exists() {
+                info!("Creating default config file at {}", config_file.display());
+                let default_config = include_str!("../config.toml");
+                std::fs::write(&config_file, default_config).unwrap();
+            } else {
+                info!("Using config file at {}", config_file.display());
+            }
+
             Figment::new().merge(Toml::file(config_file))
         } else {
             Figment::new()

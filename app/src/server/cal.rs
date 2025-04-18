@@ -29,7 +29,8 @@ impl CalApi {
 }
 
 pub struct CalendarConfig {
-    pub round_to_day: bool,
+    pub enabled: Option<bool>, // default true
+    pub round_to_day: Option<bool>, // default true
 }
 
 async fn generate_calendar(state: &AppState) -> Calendar {
