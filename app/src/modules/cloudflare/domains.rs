@@ -94,6 +94,7 @@ impl DomainService for CloudflareService {
                     .map(|x| x.to_utc());
 
                 let ext_auto_renew = Some(domain.auto_renew);
+                let ext_whois_privacy = Some(domain.privacy);
 
                 let domain = Domain::new(
                     domain.name.clone(),
@@ -102,6 +103,7 @@ impl DomainService for CloudflareService {
                     ext_expiry_at,
                     ext_registered_at,
                     ext_auto_renew,
+                    ext_whois_privacy,
                     Some(metadata),
                     state,
                 )

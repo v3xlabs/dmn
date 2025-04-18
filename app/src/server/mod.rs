@@ -25,6 +25,10 @@ pub enum ApiTags {
     Domains,
     /// DNS Related Operations
     DNS,
+    /// Calendar (.ics) support
+    Calendar,
+    /// RSS Feed
+    RSS,
 }
 
 fn get_api(state: AppState) -> impl OpenApi {

@@ -67,7 +67,7 @@ where
         });
 
         let endpoint = req.uri().to_string();
-        info!("Rate limiting request to endpoint: {}", endpoint);
+        info!("Request received at: {}", endpoint);
 
         // Check the site-wide rate limit for the IP.
         if self.ip_limiter.check_key(&ip).is_err() {

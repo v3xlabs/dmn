@@ -15,7 +15,8 @@ pub struct PorkbunDomain {
     pub create_date: Option<String>,
     pub expire_date: Option<String>,
     pub security_lock: Option<String>,
-    pub whois_privacy: Option<String>,
+    #[serde(deserialize_with = "string_or_int_to_option_i32")]
+    pub whois_privacy: Option<i32>,
     #[serde(deserialize_with = "string_or_int_to_option_i32")]
     pub auto_renew: Option<i32>,
     #[serde(deserialize_with = "string_or_int_to_option_i32")]
@@ -116,6 +117,7 @@ impl DomainService for PorkbunService {
             };
 
             let ext_auto_renew = domain.auto_renew.map(|x| x == 1);
+            let ext_whois_privacy = domain.whois_privacy.map(|x| x == 1);
 
             let domain = Domain::new(
                 domain.domain.clone(),
@@ -124,6 +126,7 @@ impl DomainService for PorkbunService {
                 ext_expiry_at,
                 ext_registered_at,
                 ext_auto_renew,
+                ext_whois_privacy,
                 Some(metadata),
                 &state,
             )

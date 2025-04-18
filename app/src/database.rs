@@ -13,7 +13,7 @@ impl Database {
                 std::env::var("HOME").unwrap() + "/.config"
             });
             let db_path = config_dir + "/dmn/db.sqlite";
-            format!("sqlite://{}", db_path).to_string()
+            format!("sqlite:{}", db_path).to_string()
         });
 
         info!("Database URL: {}", database_url);

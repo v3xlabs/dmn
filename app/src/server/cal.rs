@@ -3,28 +3,38 @@ use std::collections::HashMap;
 use chrono::{DateTime, Duration, DurationRound, Utc};
 use icalendar::{Calendar, Component, Event, EventLike};
 use poem::web::Data;
-use poem_openapi::{payload::{PlainText, Response}, ApiResponse, OpenApi};
+use poem_openapi::{payload::{Binary, PlainText, Response}, types::Example, ApiResponse, OpenApi, ResponseContent};
+use crate::{models::domain::Domain, state::AppState, server::ApiTags};
 
-use crate::{models::domain::Domain, state::AppState};
+#[derive(ResponseContent)]
+enum IcsContent {
+    #[oai(content_type = "text/calendar")]
+    Calendar(PlainText<String>),
+}
+    
+#[derive(ApiResponse)]
+enum CalendarResponse {
+    #[oai(status = 200)]
+    Ok(IcsContent),
+}
+
+const SAMPLE_ICS: &str = include_str!("../web/public/sample.ics");
+
+impl Example for IcsContent {
+    fn example() -> Self {
+        Self::Calendar(PlainText(SAMPLE_ICS.to_string()))
+    }
+}
 
 pub struct CalApi;
 
 #[OpenApi]
 impl CalApi {
-    #[oai(path = "/domains.ics", method = "get")]
-    async fn get_cal(&self, state: Data<&AppState>) -> Response<PlainText<String>> {
+    #[oai(path = "/domains.ics", method = "get", tag = "ApiTags::Calendar")]
+    async fn get_cal(&self, state: Data<&AppState>) -> CalendarResponse {
         let calendar = generate_calendar(&state).await;
 
-        poem_openapi::payload::Response::new(PlainText(calendar.to_string()))
-            .header("Content-Type", "text/calendar; charset=utf-8")
-            .header(
-                "Content-Disposition",
-                "attachment; filename=\"domains.ics\"",
-            )
-            .header("Cache-Control", "no-cache, no-store, must-revalidate")
-            .header("Pragma", "no-cache")
-            .header("Expires", "0")
-            .header("Access-Control-Allow-Origin", "*")
+        CalendarResponse::Ok(IcsContent::Calendar(PlainText(calendar.to_string())))
     }
 }
 
