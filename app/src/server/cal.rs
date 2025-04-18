@@ -1,17 +1,21 @@
 use std::collections::HashMap;
 
+use crate::{models::domain::Domain, server::ApiTags, state::AppState};
 use chrono::{DateTime, Duration, DurationRound, Utc};
 use icalendar::{Calendar, Component, Event, EventLike};
 use poem::web::Data;
-use poem_openapi::{payload::{Binary, PlainText, Response}, types::Example, ApiResponse, OpenApi, ResponseContent};
-use crate::{models::domain::Domain, state::AppState, server::ApiTags};
+use poem_openapi::{
+    payload::{Binary, PlainText, Response},
+    types::Example,
+    ApiResponse, OpenApi, ResponseContent,
+};
 
 #[derive(ResponseContent)]
 enum IcsContent {
     #[oai(content_type = "text/calendar")]
     Calendar(PlainText<String>),
 }
-    
+
 #[derive(ApiResponse)]
 enum CalendarResponse {
     #[oai(status = 200)]
@@ -39,7 +43,7 @@ impl CalApi {
 }
 
 pub struct CalendarConfig {
-    pub enabled: Option<bool>, // default true
+    pub enabled: Option<bool>,      // default true
     pub round_to_day: Option<bool>, // default true
 }
 
