@@ -1223,7 +1223,7 @@ dependencies = [
 
 [[package]]
 name = "dmn"
-version = "0.1.0-dev"
+version = "0.2.1-dev"
 dependencies = [
  "anyhow",
  "async-std",

@@ -1,5 +1,5 @@
 use chrono::DateTime;
-use cloudflare::endpoints::account::{list_accounts::ListAccountsParams, ListAccounts};
+use cloudflare::endpoints::account::{list_accounts::ListAccountsParams, Account, ListAccounts};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
@@ -70,6 +70,9 @@ impl DomainService for CloudflareService {
         info!("Cloudflare accounts: {:?}", accounts);
 
         for account in accounts.result {
+            let account_id_clone = account.id.clone();
+            let account_name_clone = account.name.clone();
+
             let domains = ListDomains {
                 params: ListDomainsParams {
                     account: account.id,
@@ -85,7 +88,14 @@ impl DomainService for CloudflareService {
             let domains = domains_result.result.into_vec();
 
             for domain in domains {
-                let metadata = serde_json::to_value(&domain).unwrap();
+                let mut metadata = serde_json::to_value(&domain).unwrap();
+
+                // Add account details to the metadata object
+                if let Some(obj) = metadata.as_object_mut() {
+                    obj.insert("account_id".to_string(), serde_json::json!(account_id_clone));
+                    obj.insert("account_name".to_string(), serde_json::json!(account_name_clone));
+                }
+
                 let ext_expiry_at = DateTime::parse_from_rfc3339(&domain.expires_at)
                     .ok()
                     .map(|x| x.to_utc());

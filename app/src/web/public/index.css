@@ -11,5 +11,17 @@ svg {
 }
 
 .card {
-    @apply border-gray-500 p-8 rounded-md border bg-white;
+    @apply border-gray-500 rounded-md border bg-white;
+}
+
+.card:not(.no-padding) {
+    @apply p-8;
+}
+
+html.large .max-w-content {
+    @apply max-w-screen-lg;
+}
+
+html .max-w-content {
+    @apply max-w-screen-md;
 }

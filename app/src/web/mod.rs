@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::models::domain::Domain;
 use crate::state::AppState;
 use chrono::{DateTime, Duration, Utc};
@@ -30,9 +32,22 @@ pub fn expiry_to_color(expiry: &Option<DateTime<Utc>>) -> &str {
     }
 }
 
-const icon_renew: maud::PreEscaped<&str> = maud::PreEscaped(include_str!("./public/refresh-ccw.svg"));
+const icon_renew: maud::PreEscaped<&str> =
+    maud::PreEscaped(include_str!("./public/refresh-ccw.svg"));
 const icon_privacy: maud::PreEscaped<&str> = maud::PreEscaped(include_str!("./public/eye-off.svg"));
-const icon_privacy_exposed: maud::PreEscaped<&str> = maud::PreEscaped(include_str!("./public/eye.svg"));
+const icon_privacy_exposed: maud::PreEscaped<&str> =
+    maud::PreEscaped(include_str!("./public/eye.svg"));
+const porkbun_icon: maud::PreEscaped<&str> =
+    maud::PreEscaped(include_str!("./public/porkbun_icon.svg"));
+const cloudflare_icon: maud::PreEscaped<&str> =
+    maud::PreEscaped(include_str!("./public/cloudflare_icon.svg"));
+
+fn format_cloudflare_url(account_id: &str, domain: &str) -> String {
+    format!(
+        "https://dash.cloudflare.com/{}/registrar/domain/{}",
+        account_id, domain
+    )
+}
 
 #[poem::handler]
 pub async fn web_endpoint(state: Data<&AppState>) -> poem_openapi::payload::Html<String> {
@@ -40,6 +55,8 @@ pub async fn web_endpoint(state: Data<&AppState>) -> poem_openapi::payload::Html
         Ok(domains) => domains,
         Err(_) => vec![],
     };
+
+    let total_domains = domains.len();
 
     let (already_expired_domains, active_domains): (Vec<Domain>, Vec<Domain>) = domains
         .into_iter()
@@ -55,13 +72,33 @@ pub async fn web_endpoint(state: Data<&AppState>) -> poem_openapi::payload::Html
                 style { (include_str!("./dist/index.css")) }
             }
             body class="w-full min-h-screen bg-gray-100 p-4 overflow-y-auto font-sans" {
-                div class="w-full max-w-screen-md mx-auto flex flex-col gap-4" {
+                div class="w-full max-w-content mx-auto flex flex-col gap-4" {
                     div class="flex gap-4 justify-between items-baseline px-4 w-full" {
                         h1 class="text-2xl font-bold" { "Domains" }
                         div class="flex gap-4 items-baseline" {
                             a href="/api/rss.xml" class="text-blue-500 hover:underline" target="_blank" { "Rss" }
                             a href="/api/domains.ics" class="text-blue-500 hover:underline" { "Calendar" }
                             a href="/docs" class="text-blue-500 hover:underline" target="_blank" { "Docs" }
+                        }
+                    }
+                    div class="grid grid-cols-4 gap-4" {
+                        div class="card no-padding py-2 px-4 flex flex-col justify-between" {
+                            h2 class="text-lg font-bold" { "Total" }
+                            p class="text-2xl font-bold" { (total_domains) }
+                        }
+                        div class="card no-padding py-2 px-4 flex flex-col justify-between" {
+                            h2 class="text-lg font-bold" { "Expired" }
+                            p class="text-2xl font-bold" { (already_expired_domains.len()) }
+                        }
+                        div class="card no-padding py-2 px-4 flex flex-col justify-between" {
+                            h2 class="text-lg font-bold" { "Expiring" }
+                            span class="text-sm text-gray-500" { "in next 30 days" }
+                            p class="text-2xl font-bold" { (active_domains.iter().filter(|d| d.ext_expiry_at.unwrap_or(Utc::now()) < Utc::now().checked_add_signed(Duration::days(30)).unwrap()).count()) }
+                        }
+                        div class="card no-padding py-2 px-4 flex flex-col justify-between" {
+                            h2 class="text-lg font-bold" { "Expiring" }
+                            span class="text-sm text-gray-500" { "in next year" }
+                            p class="text-2xl font-bold" { (active_domains.iter().filter(|d| d.ext_expiry_at.unwrap_or(Utc::now()) < Utc::now().checked_add_signed(Duration::days(365)).unwrap()).count()) }
                         }
                     }
                     div class="card" {
@@ -71,7 +108,7 @@ pub async fn web_endpoint(state: Data<&AppState>) -> poem_openapi::payload::Html
                         (domain_table(active_domains))
                     }
                 }
-                footer class="w-full max-w-screen-md mx-auto flex justify-between gap-2 items-center mb-8 px-4 py-2 text-sm" {
+                footer class="w-full max-w-content mx-auto flex justify-between gap-2 items-center mb-8 px-4 py-2 text-sm" {
                     p class="flex gap-2 items-center" {
                         a href="https://github.com/v3xlabs" class="text-blue-500 hover:underline" target="_blank" { "v3xlabs" }
                         {"/"}
@@ -101,8 +138,31 @@ fn domain_table(domains: Vec<Domain>) -> Markup {
             tbody {
                 @for domain in &domains {
                     tr {
-                        td class={(provider_to_color(&domain.provider)) " text-xs whitespace-nowrap"} { (domain.provider) }
-                        td class="w-full min-w-0" { (domain.name) }
+                        td class={(provider_to_color(&domain.provider)) " whitespace-nowrap pr-2"} {
+                            div class="flex gap-2 items-center h-full" {
+                                (match domain.provider.as_str() {
+                                    "porkbun" => porkbun_icon,
+                                    "cloudflare" => cloudflare_icon,
+                                    _ => icon_privacy,
+                                })
+                                (match domain.provider.as_str() {
+                                        "cloudflare" => {
+                                            html!(a href={(format_cloudflare_url(&domain.metadata.as_ref().unwrap().get("account_id").map_or("-".to_string(), |id| id.as_str().unwrap().to_string()), &domain.name))} target="_blank" {
+                                                span class="text-xs" { (domain.provider) }
+                                            })
+                                        },
+                                    _ => {
+                                        html!(span class="text-xs" { (domain.provider) })
+                                    }
+                                }
+                                )
+                            }
+                        }
+                        td class="w-full min-w-0" {
+                            span class="private" { (domain.name.split(".").next().unwrap()) }
+                            {"."}
+                            span class="text-gray-500" { (domain.name.split(".").skip(1).collect::<Vec<&str>>().join(".")) }
+                        }
                         td class="pr-4" {
                             div class={(expiry_to_color(&domain.ext_expiry_at)) " text-xs whitespace-nowrap"} {
                                 (domain.ext_expiry_at.map(|dt| HumanTime::from(dt).to_string()).unwrap_or("-".to_string()))
