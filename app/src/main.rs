@@ -57,6 +57,9 @@ enum Commands {
     Whois {
         /// The domain name to query
         domain: String,
+        /// Output in JSON format
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -195,9 +198,9 @@ async fn main() -> Result<(), Error> {
                 }
             }
         }
-        Commands::Whois { domain } => {
+        Commands::Whois { domain, json } => {
             println!("Querying Whois for domain: {}", domain);
-            let result = whois(domain.clone()).await?;
+            let result = whois(domain.clone(), *json).await?;
             println!("{}", result);
         }
     }

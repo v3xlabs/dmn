@@ -6,8 +6,9 @@ use comfy_table::{
     presets::UTF8_FULL, Attribute, Cell, CellAlignment, ContentArrangement, Row, Table,
 };
 use regex::Regex;
+use serde_json::json;
 use tracing::info;
-use std::fmt;
+use std::{collections::HashMap, fmt};
 use whois_rust::{Target, WhoIs, WhoIsHost, WhoIsLookupOptions};
 
 /// Struct to hold the result of a whois lookup
@@ -32,7 +33,7 @@ impl fmt::Display for WhoisResult {
 const WHOIS_SERVERS: &str = include_str!("servers.json");
 
 /// Perform a whois lookup on the domain
-pub async fn whois(domain: String) -> Result<WhoisResult, Error> {
+pub async fn whois(domain: String, json: bool) -> Result<WhoisResult, Error> {
     // Default whois server for most TLDs
     let whois = WhoIs::from_string(WHOIS_SERVERS).unwrap();
 
@@ -46,67 +47,11 @@ pub async fn whois(domain: String) -> Result<WhoisResult, Error> {
         .next()
         .unwrap();
 
-    // example of raw:
-    /*
-    Domain Name: v3x.sh
-    Registry Domain ID: eff74bbdf39c4e258f687c70c22df6a3-DONUTS
-    Registrar WHOIS Server: whois.porkbun.com
-    Registrar URL: http://porkbun.com
-    Updated Date: 2025-04-10T00:03:30Z
-    Creation Date: 2022-12-27T00:24:43Z
-    Registry Expiry Date: 2025-12-27T00:24:43Z
-    Registrar: Porkbun LLC
-    Registrar IANA ID: 1861
-    Registrar Abuse Contact Email: abuse@porkbun.com
-    Registrar Abuse Contact Phone: +1.5038508351
-    Domain Status: clientDeleteProhibited https://icann.org/epp#clientDeleteProhibited
-    Domain Status: clientTransferProhibited https://icann.org/epp#clientTransferProhibited
-    Registry Registrant ID: REDACTED
-    Registrant Name: REDACTED
-    Registrant Organization: Private by Design, LLC
-    Registrant Street: REDACTED
-    Registrant City: REDACTED
-    Registrant State/Province: NC
-    Registrant Postal Code: REDACTED
-    Registrant Country: US
-    Registrant Phone: REDACTED
-    Registrant Phone Ext: REDACTED
-    Registrant Fax: REDACTED
-    Registrant Fax Ext: REDACTED
-    Registrant Email: REDACTED
-    Registry Admin ID: REDACTED
-    Admin Name: REDACTED
-    Admin Organization: REDACTED
-    Admin Street: REDACTED
-    Admin City: REDACTED
-    Admin State/Province: REDACTED
-    Admin Postal Code: REDACTED
-    Admin Country: REDACTED
-    Admin Phone: REDACTED
-    Admin Phone Ext: REDACTED
-    Admin Fax: REDACTED
-    Admin Fax Ext: REDACTED
-    Admin Email: REDACTED
-    Registry Tech ID: REDACTED
-    Tech Name: REDACTED
-    Tech Organization: REDACTED
-    Tech Street: REDACTED
-    Tech City: REDACTED
-    Tech State/Province: REDACTED
-    Tech Postal Code: REDACTED
-    Tech Country: REDACTED
-    Tech Phone: REDACTED
-    Tech Phone Ext: REDACTED
-    Tech Fax: REDACTED
-    Tech Fax Ext: REDACTED
-    Tech Email: REDACTED
-    Name Server: thomas.ns.cloudflare.com
-    Name Server: simone.ns.cloudflare.com
-    DNSSEC: unsigned
-    URL of the ICANN Whois Inaccuracy Complaint Form: https://icann.org/wicf/
-         */
-
-    let styled = style_raw(raw);
+    let styled = if json {
+        json_raw(raw)
+    } else {
+        style_raw(raw)
+    };
 
     Ok(WhoisResult {
         domain,
@@ -284,13 +229,45 @@ fn style_raw(raw: &str) -> String {
     format!("{}\n\n{}{}", table, rest.trim(), redacted_summary)
 }
 
+fn json_raw(raw: &str) -> String {
+    let field_re = Regex::new(r"^([A-Za-z0-9 /_-]+):\s*(.+)$").unwrap();
+
+    // interpret the raw string (somehow)
+    // some lines will be `(.+): (.+)`
+    // lets extract the key and value and put them in a hashmap
+    // add any extra lines to extra_lines vec<string>
+    let mut map = HashMap::new();
+    let mut extra_lines = vec![];
+
+    for line in raw.lines() {
+        if let Some(cap) = field_re.captures(line) {
+            let key = cap.get(1).unwrap().as_str().trim();
+            let value = cap.get(2).unwrap().as_str().trim();
+            map.insert(sluggify_key(key), value.to_string());
+        } else {
+            extra_lines.push(line.to_string());
+        }
+    }
+    
+    // return the hashmap and the extra lines as a json object
+    let json = json!({
+        "map": map,
+        "extra_lines": extra_lines
+    });
+    json.to_string()
+}
+
+fn sluggify_key(key: &str) -> String {
+    key.replace(" ", "_").replace("-", "_").to_lowercase()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[async_std::test]
     async fn test_whois() {
-        let result = whois("google.com".to_string()).await.unwrap();
+        let result = whois("google.com".to_string(), false).await.unwrap();
         println!("{}", result);
     }
 }
