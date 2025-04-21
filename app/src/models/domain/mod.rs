@@ -6,7 +6,7 @@ use sqlx::prelude::FromRow;
 
 use crate::state::AppState;
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Object)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Object, Clone)]
 pub struct Domain {
     pub name: String,
     pub provider: String,
@@ -53,6 +53,17 @@ impl Domain {
         let domains = sqlx::query_as::<_, Domain>(
             "SELECT * FROM domains ORDER BY ext_expiry_at ASC"
         )
+        .fetch_all(&state.database.pool)
+        .await?;
+
+        Ok(domains)
+    }
+
+    pub async fn find_by_provider(state: &AppState, provider: &str) -> Result<Vec<Self>, sqlx::Error> {
+        let domains = sqlx::query_as::<_, Domain>(
+            "SELECT * FROM domains WHERE provider = ?"
+        )
+        .bind(provider)
         .fetch_all(&state.database.pool)
         .await?;
 

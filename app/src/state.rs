@@ -1,16 +1,19 @@
 use crate::{
     cache::AppCache,
     database::Database,
-    modules::{cloudflare::CloudflareService, porkbun::PorkbunService},
+    modules::{cloudflare::CloudflareService, porkbun::PorkbunService, telegram::TelegramService},
 };
 use dirs;
-use figment::{providers::{Env, Format, Toml}, Figment};
+use figment::{
+    providers::{Env, Format, Toml},
+    Figment,
+};
 use serde::{Deserialize, Serialize};
 use shellexpand;
-use tracing::info;
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tracing::info;
 
 pub type AppState = Arc<AppStateInner>;
 
@@ -30,6 +33,7 @@ pub struct AppStateInner {
     pub cache: AppCache,
     pub porkbun: Option<PorkbunService>,
     pub cloudflare: Option<CloudflareService>,
+    pub telegram: Option<TelegramService>,
 }
 
 impl AppStateInner {
@@ -39,9 +43,12 @@ impl AppStateInner {
             // read from `~/.config/dmn/config.toml`
             let config_dir = dirs::config_dir().unwrap();
             let config_dmn_dir = config_dir.join("dmn");
-            
+
             if !config_dmn_dir.exists() {
-                info!("Creating default config directory at {}", config_dmn_dir.display());
+                info!(
+                    "Creating default config directory at {}",
+                    config_dmn_dir.display()
+                );
                 std::fs::create_dir_all(&config_dmn_dir).unwrap();
             }
 
@@ -102,12 +109,15 @@ impl AppStateInner {
             None
         };
 
+        let telegram = TelegramService::try_init(&config_file).await;
+
         Self {
             database,
             cache,
             api,
             porkbun,
             cloudflare,
+            telegram,
         }
     }
 }

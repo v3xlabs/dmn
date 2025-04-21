@@ -62,12 +62,14 @@ pub struct CloudflareDomain {
 }
 
 impl DomainService for CloudflareService {
-    async fn ingest_domains(&self, state: &AppState) -> Result<(), Error> {
+    async fn ingest_domains(&self, state: &AppState) -> Result<Vec<Domain>, Error> {
         let accounts = ListAccounts {
             params: Some(ListAccountsParams::default()),
         };
         let accounts = self.client.request(&accounts).await?;
         info!("Cloudflare accounts: {:?}", accounts);
+
+        let mut result_domains: Vec<Domain> = Vec::new();
 
         for account in accounts.result {
             let account_id_clone = account.id.clone();
@@ -121,12 +123,14 @@ impl DomainService for CloudflareService {
                 .unwrap();
 
                 info!("Cloudflare domain ingested: {:?}", domain);
+
+                result_domains.push(domain);
             }
         }
 
         info!("Completed cloudflare");
 
-        Ok(())
+        Ok(result_domains)
     }
 }
 

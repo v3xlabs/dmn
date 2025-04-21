@@ -4,10 +4,12 @@ use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Row, Tabl
 use csv::Writer;
 use figment::Figment;
 use models::domain::Domain;
+use modules::domains::diff_provider;
 use modules::{
     cloudflare::CloudflareService, porkbun::PorkbunService, whois::whois, DomainService,
 };
 use state::{AppState, AppStateInner};
+use tracing::{info, warn};
 use std::sync::Arc;
 use std::io::Write;
 use std::process::{Command, Stdio};
@@ -288,7 +290,15 @@ async fn main() -> Result<(), Error> {
                 PorkbunCommands::Index { no_dns } => {
                     println!("Indexing Porkbun domains");
                     // TODO: Implement actual indexing logic
-                    porkbun.ingest_domains(&state).await?;
+
+                    let notifications = diff_provider(&state, "porkbun", &porkbun).await?;
+
+                    if let Some(telegram) = &state.telegram {
+                        info!("Sending notifications to Telegram");
+                        telegram.send_notifications(notifications).await?;
+                    } else {
+                        warn!("Telegram service not initialized");
+                    }
 
                     if !no_dns {
                         // TODO: Implement actual DNS indexing logic
