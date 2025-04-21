@@ -1,7 +1,7 @@
 use crate::{
     cache::AppCache,
     database::Database,
-    modules::{cloudflare::CloudflareService, porkbun::PorkbunService, telegram::TelegramService},
+    modules::{cloudflare::CloudflareService, ntfy::NtfyService, porkbun::PorkbunService},
 };
 use dirs;
 use figment::{
@@ -33,7 +33,7 @@ pub struct AppStateInner {
     pub cache: AppCache,
     pub porkbun: Option<PorkbunService>,
     pub cloudflare: Option<CloudflareService>,
-    pub telegram: Option<TelegramService>,
+    pub ntfy: Option<NtfyService>,
 }
 
 impl AppStateInner {
@@ -109,7 +109,7 @@ impl AppStateInner {
             None
         };
 
-        let telegram = TelegramService::try_init(&config_file).await;
+        let ntfy = NtfyService::try_init(&config_file).await;
 
         Self {
             database,
@@ -117,7 +117,7 @@ impl AppStateInner {
             api,
             porkbun,
             cloudflare,
-            telegram,
+            ntfy,
         }
     }
 }

@@ -293,11 +293,11 @@ async fn main() -> Result<(), Error> {
 
                     let notifications = diff_provider(&state, "porkbun", &porkbun).await?;
 
-                    if let Some(telegram) = &state.telegram {
-                        info!("Sending notifications to Telegram");
-                        telegram.send_notifications(notifications).await?;
+                    if let Some(ntfy) = &state.ntfy {
+                        info!("Sending notifications to Ntfy");
+                        ntfy.send_notifications(notifications).await?;
                     } else {
-                        warn!("Telegram service not initialized");
+                        warn!("Ntfy service not initialized");
                     }
 
                     if !no_dns {

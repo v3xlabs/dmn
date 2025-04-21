@@ -4,7 +4,7 @@ pub mod cloudflare;
 pub mod porkbun;
 pub mod whois;
 pub mod domains;
-pub mod telegram;
+pub mod ntfy;
 
 pub trait DomainService {
     async fn ingest_domains(&self, state: &AppState) -> Result<Vec<Domain>, Error>;
