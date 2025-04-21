@@ -71,11 +71,15 @@ impl NtfyService {
             };
 
             let message: String = if topic.as_str() == "change" {
+                format!(
+                    "{}\n\n{}",
+                    notifications.iter().map(|n| format!("*{}*", n.domain)).collect::<Vec<String>>().join(", "),
                 notifications
                     .iter()
-                    .map(|n| format!("`{}`:\n {}", n.domain, n.message))
+                    .map(|n| format!("**{}**:\n{}", n.domain, n.message))
                     .collect::<Vec<String>>()
-                    .join("\n")
+                    .join("\n\n")
+                )
             } else if ["add", "delete"].contains(&topic.as_str()) {
                 // just show list of domains escaped with `
                 notifications
