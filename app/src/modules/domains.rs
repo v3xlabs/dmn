@@ -28,6 +28,9 @@ pub async fn diff_provider(
 
     for deletion in deletions {
         info!("Domain deleted: {}", deletion);
+
+        Domain::delete_by_name(state, provider, &deletion).await?;
+
         // TODO: notify user the domain was deleted
         notifications.push(Notification::new(state, deletion, "delete", "Domain deleted".to_string()).await?);
     }

@@ -1,5 +1,6 @@
 use std::{num::NonZero, sync::Arc};
 
+use async_std::{future, prelude::FutureExt};
 use cal::CalApi;
 use domains::DomainApi;
 use governor::Quota;
@@ -15,9 +16,10 @@ use tracing::info;
 
 use crate::{state::AppState, web};
 
+pub mod cal;
 pub mod domains;
 pub mod ratelimit;
-pub mod cal;
+pub mod schedule;
 
 #[derive(Tags)]
 pub enum ApiTags {
@@ -144,12 +146,15 @@ fn add_ics_example(json: &str) -> String {
         .replace("\r", "");
 
     // Define the replacement block, matching the indentation and structure.
-    let replacement_block = format!(r#""text/calendar": {{
+    let replacement_block = format!(
+        r#""text/calendar": {{
                 "schema": {{
                   "type": "string"
                 }},
                 "example": "{}"
-              }}"#, ics_example);
+              }}"#,
+        ics_example
+    );
 
     // Perform a simple string replacement.
     json.replace(pattern_to_replace, &replacement_block)
@@ -202,13 +207,15 @@ pub async fn start_http(state: AppState) {
         .nest("/docs", get(get_openapi_docs))
         .nest("/api", api_service)
         // .nest("/metrics", get(prom::route))
-        .data(state);
-        // .with(Cors::new());
+        .data(state.clone());
+    // .with(Cors::new());
 
-    Server::new(TcpListener::bind("0.0.0.0:3000"))
-        .run(app)
-        .await
-        .unwrap();
+    let schedule_service = schedule::start_schedule(&state);
+
+    let x = Server::new(TcpListener::bind("0.0.0.0:3000"))
+        .run(app);
+
+    let _ = x.join(schedule_service).await;
 }
 
 #[handler]

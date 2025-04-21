@@ -69,4 +69,14 @@ impl Domain {
 
         Ok(domains)
     }
+
+    pub async fn delete_by_name(state: &AppState, provider: &str, name: &str) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM domains WHERE provider = ? AND name = ?")
+            .bind(provider)
+            .bind(name)
+            .execute(&state.database.pool)
+            .await?;
+
+        Ok(())
+    }
 }
