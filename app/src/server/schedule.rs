@@ -3,16 +3,26 @@ use std::time::Duration;
 use async_std::stream::{self, StreamExt};
 use tracing::{info, warn};
 
-use crate::{modules::domains::diff_provider, state::AppState, Error};
+use crate::{modules::{domains::diff_provider, DomainService}, state::AppState, Error};
 
 pub async fn start_schedule(state: &AppState) {
-    let _ = do_loop(state).await;
+    match do_loop(state).await {
+        Ok(_) => (),
+        Err(e) => {
+            tracing::error!("Error in schedule: {}", e);
+        }
+    }
 
     // 1 hr by default
     let mut ticks = stream::interval(Duration::from_secs(60 * 60));
 
     while (ticks.next().await).is_some() {
-        let _ = do_loop(state).await;
+        match do_loop(state).await {
+            Ok(_) => (),
+            Err(e) => {
+                tracing::error!("Error in schedule: {}", e);
+            }
+        }
     }
 }
 
