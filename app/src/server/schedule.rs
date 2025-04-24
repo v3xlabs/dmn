@@ -36,6 +36,8 @@ async fn do_loop(state: &AppState) -> Result<(), Error> {
         } else {
             warn!("Ntfy service not initialized");
         }
+
+        porkbun.ingest_domain_tld_prices(state).await?;
     }
 
     Ok(())

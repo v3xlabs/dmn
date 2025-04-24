@@ -94,8 +94,14 @@ impl DomainService for CloudflareService {
 
                 // Add account details to the metadata object
                 if let Some(obj) = metadata.as_object_mut() {
-                    obj.insert("account_id".to_string(), serde_json::json!(account_id_clone));
-                    obj.insert("account_name".to_string(), serde_json::json!(account_name_clone));
+                    obj.insert(
+                        "account_id".to_string(),
+                        serde_json::json!(account_id_clone),
+                    );
+                    obj.insert(
+                        "account_name".to_string(),
+                        serde_json::json!(account_name_clone),
+                    );
                 }
 
                 let ext_expiry_at = DateTime::parse_from_rfc3339(&domain.expires_at)
@@ -131,6 +137,11 @@ impl DomainService for CloudflareService {
         info!("Completed cloudflare");
 
         Ok(result_domains)
+    }
+
+    async fn ingest_domain_tld_prices(&self, state: &AppState) -> Result<(), Error> {
+        // TODO: Implement
+        Ok(())
     }
 }
 

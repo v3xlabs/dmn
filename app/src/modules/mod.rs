@@ -8,6 +8,8 @@ pub mod ntfy;
 
 pub trait DomainService {
     async fn ingest_domains(&self, state: &AppState) -> Result<Vec<Domain>, Error>;
+
+    async fn ingest_domain_tld_prices(&self, state: &AppState) -> Result<(), Error>;
 }
 
 pub trait DNSService {

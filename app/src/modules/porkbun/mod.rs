@@ -5,6 +5,7 @@ use reqwest;
 use tracing::{info, warn};
 
 pub mod domains;
+pub mod pricing;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PorkbunConfig {

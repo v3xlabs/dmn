@@ -1,4 +1,4 @@
-use super::PorkbunService;
+use super::{pricing::ingest_domain_tld_prices, PorkbunService};
 use crate::{models::domain::Domain, modules::DomainService, state::AppState, util::serde_strint::string_or_int_to_option_i32};
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
@@ -144,6 +144,10 @@ impl DomainService for PorkbunService {
         info!("Completed porkbun");
 
         Ok(result_domains)
+    }
+
+    async fn ingest_domain_tld_prices(&self, state: &AppState) -> Result<(), Error> {
+        ingest_domain_tld_prices(state).await
     }
 }
 
