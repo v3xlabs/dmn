@@ -139,7 +139,7 @@ impl DomainService for CloudflareService {
         Ok(result_domains)
     }
 
-    async fn ingest_domain_tld_prices(&self, state: &AppState) -> Result<(), Error> {
+    async fn ingest_domain_tld_prices_if_enabled(&self, state: &AppState) -> Result<(), Error> {
         // TODO: Implement
         Ok(())
     }

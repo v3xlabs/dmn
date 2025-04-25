@@ -1,7 +1,8 @@
 use anyhow::Error;
 use figment::{providers::Env, Figment};
-use serde::{Deserialize, Serialize};
+use pricing::PorkbunPricingConfig;
 use reqwest;
+use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
 pub mod domains;
@@ -11,10 +12,11 @@ pub mod pricing;
 pub struct PorkbunConfig {
     pub api_key: Option<String>,
     pub secret_key: Option<String>,
+    pub pricing: Option<PorkbunPricingConfig>,
 }
 
 pub struct PorkbunService {
-    config: PorkbunConfig,
+    pub config: PorkbunConfig,
 }
 
 #[derive(Serialize)]
@@ -35,7 +37,10 @@ impl PorkbunService {
     }
 
     pub async fn try_init(provider: &impl figment::Provider) -> Option<Self> {
-        let config = Figment::new().merge(Env::prefixed("PORKBUN_")).merge(provider).extract::<PorkbunConfig>();
+        let config = Figment::new()
+            .merge(Env::prefixed("PORKBUN_"))
+            .merge(provider)
+            .extract::<PorkbunConfig>();
         if let Ok(config) = config {
             let service = Self::new(config);
             info!("Porkbun config verified");
@@ -49,8 +54,16 @@ impl PorkbunService {
     }
 
     pub async fn ping(&self) -> Result<String, Error> {
-        let api_key = self.config.api_key.as_ref().ok_or_else(|| anyhow::anyhow!("Missing api_key"))?;
-        let secret_key = self.config.secret_key.as_ref().ok_or_else(|| anyhow::anyhow!("Missing secret_key"))?;
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Missing api_key"))?;
+        let secret_key = self
+            .config
+            .secret_key
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Missing secret_key"))?;
         let client = reqwest::Client::new();
         let req_body = PingRequest {
             apikey: api_key,

@@ -146,8 +146,16 @@ impl DomainService for PorkbunService {
         Ok(result_domains)
     }
 
-    async fn ingest_domain_tld_prices(&self, state: &AppState) -> Result<(), Error> {
-        ingest_domain_tld_prices(state).await
+    async fn ingest_domain_tld_prices_if_enabled(&self, state: &AppState) -> Result<(), Error> {
+        if let Some(porkbun_pricing_config) = &self.config.pricing {
+            if porkbun_pricing_config.enabled {
+                ingest_domain_tld_prices(state).await
+            } else {
+                Ok(())
+            }
+        } else {
+            Ok(())
+        }
     }
 }
 

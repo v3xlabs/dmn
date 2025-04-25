@@ -18,3 +18,7 @@ enabled = true
 # Porkbun
 # [porkbun]
 # api_key = ""
+
+#[porkbun.pricing]
+#enabled = true
+#interval = "1d"

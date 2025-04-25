@@ -1,9 +1,15 @@
 use std::collections::HashMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::{models::domain_tld_price::DomainTLDPrice, state::AppState, Error};
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PorkbunPricingConfig {
+    pub enabled: bool,
+    pub interval: Option<String>,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct PorkbunTLDPrice {
