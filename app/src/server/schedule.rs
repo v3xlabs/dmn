@@ -31,8 +31,12 @@ async fn do_loop(state: &AppState) -> Result<(), Error> {
         let notifications = diff_provider(&state, "porkbun", porkbun).await?;
 
         if let Some(ntfy) = &state.ntfy {
-            info!("Sending notifications to Ntfy");
-            ntfy.send_notifications(notifications).await?;
+            if !notifications.is_empty() {
+                info!("Sending notifications to Ntfy");
+                ntfy.send_notifications(notifications).await?;
+            } else {
+                info!("No notifications to send");
+            }
         } else {
             warn!("Ntfy service not initialized");
         }
