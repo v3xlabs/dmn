@@ -21,6 +21,8 @@ WORKDIR /app
 # -----------------------
 # RUST_LOG: Logging configuration (default: error,dmn=info)
 ENV RUST_LOG="error,dmn=info"
+ENV DMN_CONFIG_PATH="/config.toml"
+ENV DMN_DATABASE_URL="sqlite://db.sqlite"
 
 # Add temp directory environment variable
 ENV TMPDIR=/tmp

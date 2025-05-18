@@ -3,13 +3,14 @@ use crate::{
     database::Database,
     modules::{cloudflare::CloudflareService, ntfy::NtfyService, porkbun::PorkbunService},
 };
+use async_std::path::Path;
 use dirs;
 use figment::{
     providers::{Env, Format, Toml},
     Figment,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use tracing::{error, info};
 
 pub type AppState = Arc<AppStateInner>;
@@ -38,24 +39,25 @@ fn get_config_file(server: bool) -> Option<Figment> {
         return None;
     }
 
-    // read from `~/.config/dmn/config.toml`
-    let config_dir = dirs::config_dir().unwrap();
-    let config_dmn_dir = config_dir.join("dmn");
+    let config_file = std::env::var("DMN_CONFIG_PATH").map(|path| PathBuf::from(&path)).unwrap_or_else(|_| {
+        let config_dir = dirs::config_dir().unwrap();
+        let config_dmn_dir = config_dir.join("dmn");
+        config_dmn_dir.join("config.toml")
+    });
+    let config_dmn_dir = config_file.parent().unwrap();
 
     if !config_dmn_dir.exists() {
         info!(
             "Creating default config directory at {}",
             config_dmn_dir.display()
         );
-        let x = std::fs::create_dir_all(&config_dmn_dir);
+        let x = std::fs::create_dir_all(config_dmn_dir);
 
         if let Err(e) = x {
             error!("Failed to create config directory: {}", e);
             return None;
         }
     }
-
-    let config_file = config_dmn_dir.join("config.toml");
 
     // if file doesnt exist create it by copying from hardcoded file `../config.toml`
     if !config_file.exists() {
