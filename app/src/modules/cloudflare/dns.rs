@@ -6,7 +6,7 @@ use crate::{modules::DNSService, Error, state::AppState};
 use super::CloudflareService;
 
 impl DNSService for CloudflareService {
-    async fn ingest_dns_domains(&self, state: &AppState) -> Result<(), Error> {
+    async fn ingest_dns_domains(&self, _state: &AppState) -> Result<(), Error> {
         let list_zones = ListZones {
             params: ListZonesParams::default(),
         };

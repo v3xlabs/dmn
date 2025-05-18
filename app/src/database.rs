@@ -18,6 +18,7 @@ impl Database {
 
         info!("Database URL: {}", database_url);
 
+        // SQLX
         if !sqlx::Sqlite::database_exists(&database_url).await.unwrap() {
             sqlx::Sqlite::create_database(&database_url).await.unwrap();
         }

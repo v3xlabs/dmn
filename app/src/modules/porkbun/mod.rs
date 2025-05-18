@@ -44,9 +44,16 @@ impl PorkbunService {
         if let Ok(config) = config {
             let service = Self::new(config);
             info!("Porkbun config verified");
-            service.ping().await.ok()?;
-            info!("Porkbun token valid (ping successful)");
-            Some(service)
+            match service.ping().await {
+                Ok(_) => {
+                    info!("Porkbun token valid (ping successful)");
+                    Some(service)
+                }
+                Err(e) => {
+                    warn!("Porkbun token invalid (ping failed): {}", e);
+                    None
+                }
+            }
         } else {
             warn!("Porkbun config verification failed");
             None
