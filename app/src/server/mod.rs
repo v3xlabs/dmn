@@ -1,12 +1,12 @@
 use std::{num::NonZero, sync::Arc};
 
-use async_std::{future, prelude::FutureExt};
+use async_std::{prelude::FutureExt};
 use cal::CalApi;
 use domains::DomainApi;
 use governor::Quota;
 use poem::{
-    endpoint::StaticFilesEndpoint, get, handler, listener::TcpListener,
-    middleware::OpenTelemetryMetrics, web::Data, EndpointExt, Response, Route, Server,
+    get, handler, listener::TcpListener, middleware::OpenTelemetryMetrics, web::Data,
+    EndpointExt, Response, Route, Server,
 };
 use poem_openapi::{payload::Html, OpenApi, OpenApiService, Tags};
 
@@ -33,7 +33,7 @@ pub enum ApiTags {
     RSS,
 }
 
-fn get_api(state: AppState) -> impl OpenApi {
+fn get_api(_state: AppState) -> impl OpenApi {
     (DomainApi, CalApi)
 }
 

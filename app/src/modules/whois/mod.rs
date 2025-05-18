@@ -1,5 +1,4 @@
 use crate::Error;
-use async_std::prelude::*;
 use chrono::{DateTime, Utc};
 use colored::*;
 use comfy_table::{
@@ -9,7 +8,7 @@ use regex::Regex;
 use serde_json::json;
 use tracing::info;
 use std::{collections::HashMap, fmt};
-use whois_rust::{Target, WhoIs, WhoIsHost, WhoIsLookupOptions};
+use whois_rust::{WhoIs, WhoIsLookupOptions};
 
 /// Struct to hold the result of a whois lookup
 #[derive(Debug, Clone)]

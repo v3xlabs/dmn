@@ -73,8 +73,6 @@ enum CloudflareCommands {
 pub async fn handle_args() -> Result<(), Error> {
     let cli = Cli::parse();
 
-    let cli = Cli::parse();
-
     match &cli.command {
         Commands::Server => {
             dotenvy::dotenv().ok();

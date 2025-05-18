@@ -1,4 +1,4 @@
-use serde::{Deserialize, Deserializer};
+use serde::{Deserializer};
 use std::fmt;
 
 pub fn string_or_int_to_option_i32<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>

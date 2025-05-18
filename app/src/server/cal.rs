@@ -5,8 +5,7 @@ use chrono::{DateTime, Duration, DurationRound, Utc};
 use icalendar::{Calendar, Component, Event, EventLike};
 use poem::web::Data;
 use poem_openapi::{
-    payload::{Binary, PlainText, Response},
-    types::Example,
+    payload::{PlainText},
     ApiResponse, OpenApi, ResponseContent,
 };
 

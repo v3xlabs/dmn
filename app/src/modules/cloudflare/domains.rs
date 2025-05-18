@@ -1,5 +1,5 @@
 use chrono::DateTime;
-use cloudflare::endpoints::account::{list_accounts::ListAccountsParams, Account, ListAccounts};
+use cloudflare::endpoints::account::{list_accounts::ListAccountsParams, ListAccounts};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 

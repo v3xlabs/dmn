@@ -1,19 +1,3 @@
-use async_std::prelude::FutureExt;
-use clap::{Parser, Subcommand};
-use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Row, Table};
-use csv::Writer;
-use figment::Figment;
-use models::domain::Domain;
-use modules::domains::diff_provider;
-use modules::{
-    cloudflare::CloudflareService, porkbun::PorkbunService, whois::whois, DomainService,
-};
-use state::{AppState, AppStateInner};
-use std::io::Write;
-use std::process::{Command, Stdio};
-use std::sync::Arc;
-use tracing::{info, warn};
-
 pub mod cache;
 pub mod cmd;
 pub mod database;

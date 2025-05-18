@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use crate::models::domain::Domain;
 use crate::state::AppState;
 use chrono::{DateTime, Duration, Utc};

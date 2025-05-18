@@ -52,7 +52,7 @@ pub async fn ingest_domain_tld_prices(state: &AppState) -> Result<(), Error> {
         let price = price.registration.parse::<f64>()?;
         // price currently in dollars
         let price_rounded = (price * 100.0).round() as i64;
-        let domain_tld_price = DomainTLDPrice::new(
+        let _domain_tld_price = DomainTLDPrice::new(
             "porkbun".to_string(),
             tld.to_string(),
             price_rounded,

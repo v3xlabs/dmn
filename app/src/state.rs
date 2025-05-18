@@ -9,11 +9,8 @@ use figment::{
     Figment,
 };
 use serde::{Deserialize, Serialize};
-use shellexpand;
-use std::env;
-use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{error, info};
 
 pub type AppState = Arc<AppStateInner>;
 
@@ -36,36 +33,56 @@ pub struct AppStateInner {
     pub ntfy: Option<NtfyService>,
 }
 
+fn get_config_file(server: bool) -> Option<Figment> {
+    if !server {
+        return None;
+    }
+
+    // read from `~/.config/dmn/config.toml`
+    let config_dir = dirs::config_dir().unwrap();
+    let config_dmn_dir = config_dir.join("dmn");
+
+    if !config_dmn_dir.exists() {
+        info!(
+            "Creating default config directory at {}",
+            config_dmn_dir.display()
+        );
+        let x = std::fs::create_dir_all(&config_dmn_dir);
+
+        if let Err(e) = x {
+            error!("Failed to create config directory: {}", e);
+            return None;
+        }
+    }
+
+    let config_file = config_dmn_dir.join("config.toml");
+
+    // if file doesnt exist create it by copying from hardcoded file `../config.toml`
+    if !config_file.exists() {
+        info!("Creating default config file at {}", config_file.display());
+        let default_config = include_str!("../config.toml");
+        let x = std::fs::write(&config_file, default_config);
+
+        if let Err(e) = x {
+            error!("Failed to create config file: {}", e);
+            return None;
+        }
+    } else {
+        info!("Using config file at {}", config_file.display());
+    }
+
+    Some(Figment::new().merge(Toml::file(config_file)))
+}
+
 impl AppStateInner {
     pub async fn init(server: bool) -> Self {
         // Load configuration from environment variables
-        let config_file = if server {
-            // read from `~/.config/dmn/config.toml`
-            let config_dir = dirs::config_dir().unwrap();
-            let config_dmn_dir = config_dir.join("dmn");
-
-            if !config_dmn_dir.exists() {
-                info!(
-                    "Creating default config directory at {}",
-                    config_dmn_dir.display()
-                );
-                std::fs::create_dir_all(&config_dmn_dir).unwrap();
+        let config_file = match get_config_file(server) {
+            Some(config_file) => config_file,
+            None => {
+                error!("Failed to load config file");
+                Figment::new()
             }
-
-            let config_file = config_dmn_dir.join("config.toml");
-
-            // if file doesnt exist create it by copying from hardcoded file `../config.toml`
-            if !config_file.exists() {
-                info!("Creating default config file at {}", config_file.display());
-                let default_config = include_str!("../config.toml");
-                std::fs::write(&config_file, default_config).unwrap();
-            } else {
-                info!("Using config file at {}", config_file.display());
-            }
-
-            Figment::new().merge(Toml::file(config_file))
-        } else {
-            Figment::new()
         };
 
         // Determine database URL: prefer DMN_DATABASE_URL, else default
