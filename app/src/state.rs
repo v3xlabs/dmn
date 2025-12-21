@@ -1,9 +1,8 @@
 use crate::{
     cache::AppCache,
     database::Database,
-    modules::{cloudflare::CloudflareService, ntfy::NtfyService, porkbun::PorkbunService},
+    modules::{cloudflare::CloudflareService, ntfy::NtfyService, porkbun::PorkbunService, ens::EnsService},
 };
-use async_std::path::Path;
 use dirs;
 use figment::{
     providers::{Env, Format, Toml},
@@ -31,18 +30,20 @@ pub struct AppStateInner {
     pub cache: AppCache,
     pub porkbun: Option<PorkbunService>,
     pub cloudflare: Option<CloudflareService>,
+    pub ens: Option<EnsService>,
     pub ntfy: Option<NtfyService>,
 }
 
-fn get_config_file(server: bool) -> Option<Figment> {
-    if !server {
-        return None;
-    }
-
+pub fn get_config_file() -> Option<Figment> {
     let config_file = std::env::var("DMN_CONFIG_PATH").map(|path| PathBuf::from(&path)).unwrap_or_else(|_| {
-        let config_dir = dirs::config_dir().unwrap();
-        let config_dmn_dir = config_dir.join("dmn");
-        config_dmn_dir.join("config.toml")
+        let local_config = PathBuf::from("config.toml");
+        if local_config.exists() {
+            local_config
+        } else {
+            let config_dir = dirs::config_dir().unwrap();
+            let config_dmn_dir = config_dir.join("dmn");
+            config_dmn_dir.join("config.toml")
+        }
     });
     let config_dmn_dir = config_file.parent().unwrap();
 
@@ -79,7 +80,7 @@ fn get_config_file(server: bool) -> Option<Figment> {
 impl AppStateInner {
     pub async fn init(server: bool) -> Self {
         // Load configuration from environment variables
-        let config_file = match get_config_file(server) {
+        let config_file = match get_config_file() {
             Some(config_file) => config_file,
             None => {
                 error!("Failed to load config file");
@@ -127,6 +128,11 @@ impl AppStateInner {
         } else {
             None
         };
+        let ens = if server {
+            EnsService::try_init(&config_file).await
+        } else {
+            None
+        };
 
         let ntfy = NtfyService::try_init(&config_file).await;
 
@@ -136,6 +142,7 @@ impl AppStateInner {
             api,
             porkbun,
             cloudflare,
+            ens,
             ntfy,
         }
     }

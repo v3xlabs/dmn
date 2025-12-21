@@ -3,7 +3,6 @@ use clap::{Parser, Subcommand};
 use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Row, Table};
 use csv::Writer;
 use figment::Figment;
-use porkbun::PorkbunCommands;
 use crate::models::domain::Domain;
 use crate::modules::{
     cloudflare::CloudflareService, whois::whois, DomainService,
@@ -15,6 +14,7 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 mod porkbun;
+mod ens;
 
 #[derive(Parser)]
 #[command(
@@ -45,7 +45,12 @@ enum Commands {
     /// Porkbun related commands
     Porkbun {
         #[command(subcommand)]
-        subcommand: PorkbunCommands,
+        subcommand: porkbun::PorkbunCommands,
+    },
+    /// ENS related commands
+    Ens {
+        #[command(subcommand)]
+        subcommand: ens::EnsCommands,
     },
     /// Cloudflare related commands
     Cloudflare {
@@ -271,8 +276,12 @@ pub async fn handle_args() -> Result<(), Error> {
         Commands::Porkbun { subcommand } => {
             subcommand.handle().await?;
         }
+        Commands::Ens { subcommand } => {
+            subcommand.handle().await?;
+        }
         Commands::Cloudflare { subcommand } => {
-            let cloudflare = CloudflareService::try_init(&Figment::new())
+            let config = crate::state::get_config_file().unwrap_or_else(|| Figment::new());
+            let cloudflare = CloudflareService::try_init(&config)
                 .await
                 .ok_or(Error::msg("Failed to initialize Cloudflare service"))?;
             let state: AppState = Arc::new(AppStateInner::init(false).await);

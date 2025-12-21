@@ -2,6 +2,7 @@ use crate::{models::domain::Domain, state::AppState, Error};
 
 pub mod cloudflare;
 pub mod porkbun;
+pub mod ens;
 pub mod whois;
 pub mod domains;
 pub mod ntfy;

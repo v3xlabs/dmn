@@ -9,6 +9,7 @@ pub fn provider_to_color(provider: &String) -> &str {
     match provider.as_str() {
         "porkbun" => "text-[#EF7878]",
         "cloudflare" => "text-[#F48120]",
+        "ens" => "text-[#0080BC]",
         _ => "text-gray-500",
     }
 }
@@ -39,6 +40,8 @@ const porkbun_icon: maud::PreEscaped<&str> =
     maud::PreEscaped(include_str!("./public/porkbun_icon.svg"));
 const cloudflare_icon: maud::PreEscaped<&str> =
     maud::PreEscaped(include_str!("./public/cloudflare_icon.svg"));
+const ens_icon: maud::PreEscaped<&str> =
+    maud::PreEscaped(include_str!("./public/ens.svg"));
 
 fn format_cloudflare_url(account_id: &str, domain: &str) -> String {
     format!(
@@ -49,10 +52,12 @@ fn format_cloudflare_url(account_id: &str, domain: &str) -> String {
 
 #[poem::handler]
 pub async fn web_endpoint(state: Data<&AppState>) -> poem_openapi::payload::Html<String> {
-    let domains = match Domain::get_all(&state).await {
+    let mut domains = match Domain::get_all(&state).await {
         Ok(domains) => domains,
         Err(_) => vec![],
     };
+
+    domains.retain(|d| !d.name.ends_with(".addr.reverse"));
 
     let total_domains = domains.len();
 
@@ -67,7 +72,7 @@ pub async fn web_endpoint(state: Data<&AppState>) -> poem_openapi::payload::Html
                 meta charset="utf-8";
                 meta name="viewport" content="width=device-width, initial-scale=1.0";
                 title { "My Domains | dmn" }
-                style { (include_str!("./dist/index.css")) }
+                style { (maud::PreEscaped(include_str!("./dist/index.css"))) }
             }
             body class="w-full min-h-screen bg-gray-100 p-4 overflow-y-auto font-sans" {
                 div class="w-full max-w-content mx-auto flex flex-col gap-4" {
@@ -141,6 +146,7 @@ fn domain_table(domains: Vec<Domain>) -> Markup {
                                 (match domain.provider.as_str() {
                                     "porkbun" => porkbun_icon,
                                     "cloudflare" => cloudflare_icon,
+                                    "ens" => ens_icon,
                                     _ => icon_privacy,
                                 })
                                 (match domain.provider.as_str() {
@@ -156,7 +162,7 @@ fn domain_table(domains: Vec<Domain>) -> Markup {
                                 )
                             }
                         }
-                        td class="w-full min-w-0" {
+                        td class="w-full min-w-0 break-all" {
                             span class="private" { (domain.name.split(".").next().unwrap()) }
                             {"."}
                             span class="text-gray-500" { (domain.name.split(".").skip(1).collect::<Vec<&str>>().join(".")) }

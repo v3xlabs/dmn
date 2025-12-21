@@ -12,6 +12,11 @@ pub fn colorize_provider(provider: &str) -> String {
             .green()
             .truecolor(239, 120, 120)
             .to_string(),
+        "ens" => "ENS"
+            .to_string()
+            .green()
+            .truecolor(0, 128, 188)
+            .to_string(),
         _ => provider.to_string(),
     }
 }
