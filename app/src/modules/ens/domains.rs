@@ -11,6 +11,9 @@ impl DomainService for EnsService {
         for address in &self.config.addresses {
             let ens_domains = fetch_ens_domains(address).await?;
             for ens_domain in ens_domains {
+                if ens_domain.name.ends_with(".addr.reverse") {
+                    continue;
+                }
                 let domain = Domain::new(
                     ens_domain.name.clone(),
                     "ens".to_string(),

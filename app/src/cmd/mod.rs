@@ -3,6 +3,8 @@ use clap::{Parser, Subcommand};
 use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Row, Table};
 use csv::Writer;
 use figment::Figment;
+use porkbun::PorkbunCommands;
+use ens::EnsCommands;
 use crate::models::domain::Domain;
 use crate::modules::{
     cloudflare::CloudflareService, whois::whois, DomainService,
@@ -45,12 +47,12 @@ enum Commands {
     /// Porkbun related commands
     Porkbun {
         #[command(subcommand)]
-        subcommand: porkbun::PorkbunCommands,
+        subcommand: PorkbunCommands,
     },
     /// ENS related commands
     Ens {
         #[command(subcommand)]
-        subcommand: ens::EnsCommands,
+        subcommand: EnsCommands,
     },
     /// Cloudflare related commands
     Cloudflare {
@@ -280,8 +282,7 @@ pub async fn handle_args() -> Result<(), Error> {
             subcommand.handle().await?;
         }
         Commands::Cloudflare { subcommand } => {
-            let config = crate::state::get_config_file().unwrap_or_else(|| Figment::new());
-            let cloudflare = CloudflareService::try_init(&config)
+            let cloudflare = CloudflareService::try_init(&Figment::new())
                 .await
                 .ok_or(Error::msg("Failed to initialize Cloudflare service"))?;
             let state: AppState = Arc::new(AppStateInner::init(false).await);

@@ -17,8 +17,7 @@ pub enum EnsCommands {
 
 impl EnsCommands {
     pub async fn handle(&self) -> Result<(), Error> {
-        let config = crate::state::get_config_file().unwrap_or_else(|| Figment::new());
-        let ens = EnsService::try_init(&config)
+        let ens = EnsService::try_init(&Figment::new())
             .await
             .ok_or(Error::msg("Failed to initialize ENS service"))?;
         let state: AppState = Arc::new(AppStateInner::init(false).await);
