@@ -4,6 +4,7 @@ use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Row, Tabl
 use csv::Writer;
 use figment::Figment;
 use porkbun::PorkbunCommands;
+use ens::EnsCommands;
 use crate::models::domain::Domain;
 use crate::modules::{
     cloudflare::CloudflareService, whois::whois, DomainService,
@@ -15,6 +16,7 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 mod porkbun;
+mod ens;
 
 #[derive(Parser)]
 #[command(
@@ -46,6 +48,11 @@ enum Commands {
     Porkbun {
         #[command(subcommand)]
         subcommand: PorkbunCommands,
+    },
+    /// ENS related commands
+    Ens {
+        #[command(subcommand)]
+        subcommand: EnsCommands,
     },
     /// Cloudflare related commands
     Cloudflare {
@@ -269,6 +276,9 @@ pub async fn handle_args() -> Result<(), Error> {
             }
         }
         Commands::Porkbun { subcommand } => {
+            subcommand.handle().await?;
+        }
+        Commands::Ens { subcommand } => {
             subcommand.handle().await?;
         }
         Commands::Cloudflare { subcommand } => {
