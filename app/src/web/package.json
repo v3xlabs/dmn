@@ -8,8 +8,8 @@
     "watch": "pnpm dlx @tailwindcss/cli -i ./public/index.css -o ./dist/index.css --watch"
   },
   "devDependencies": {
-    "tailwindcss": "^4.1.4",
-    "@tailwindcss/cli": "^4.1.4"
+    "@tailwindcss/cli": "^4.3.5",
+    "tailwindcss": "^4.3.5"
   },
   "keywords": [],
   "author": "",
