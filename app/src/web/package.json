@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "pnpm dlx @tailwindcss/cli -i ./public/index.css -o ./dist/index.css",
-    "watch": "pnpm dlx @tailwindcss/cli -i ./public/index.css -o ./dist/index.css --watch"
+    "build": "tailwindcss -i ./public/index.css -o ./dist/index.css",
+    "watch": "tailwindcss -i ./public/index.css -o ./dist/index.css --watch"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.5",

@@ -4,13 +4,23 @@ services:
     dmn:
         image: ghcr.io/v3xlabs/dmn:edge
         environment:
-            DATABASE_URL: sqlite://data/sqlite.db
-            JWT_SECRET: abc123
-            PORKBUN_API_KEY: abc123
-            CLOUDFLARE_API_KEY: abc123
-            RUST_LOG: info
-        # Uncomment to use a persistent database (you probably want this)
-        # volumes:
-        #  - ./sqlite.db:/data/sqlite.db
+            DMN_DATABASE_URL: sqlite:///data/db.sqlite
+            DMN_CONFIG_PATH: /data/config.toml
+            DMN_API_SECRET: change-me
+            CLOUDFLARE_API_KEY: change-me
+            RUST_LOG: error,dmn=info
+            # PORKBUN_API_KEY: ""
+            # PORKBUN_SECRET_KEY: ""
+            # CLOUDFLARE_GLOBAL_API_KEY: ""
+            # CLOUDFLARE_EMAIL: ""
+            # NTFY_URL: https://ntfy.sh
+            # NTFY_TOPIC: ""
+            # NTFY_USERNAME: ""
+            # NTFY_PASSWORD: ""
+        volumes:
+            - dmn-data:/data
         ports:
             - "3000:3000"
+
+volumes:
+    dmn-data:
