@@ -1,7 +1,4 @@
-use cloudflare::{
-    endpoints::zones::zone::{ListZones, ListZonesParams, Zone},
-    framework::{auth::Credentials, client::async_api::Client, response::ApiFailure},
-};
+use cloudflare::framework::{auth::Credentials, client::async_api::Client};
 use figment::{providers::Env, Figment};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
@@ -76,25 +73,15 @@ impl CloudflareService {
         if let Ok(config) = config {
             let service = Self::new(config)?;
             info!("Cloudflare config verified");
-            service.get_zones().await.ok()?;
+            if let Err(error) = service.fetch_zone_page(1).await {
+                warn!("Cloudflare token check failed: {error:?}");
+                return None;
+            }
             info!("Cloudflare token valid (get zones successful)");
             Some(service)
         } else {
             warn!("Cloudflare config verification failed");
             None
         }
-    }
-
-    pub async fn get_zones(&self) -> Result<Vec<Zone>, ApiFailure> {
-        let list_zones = ListZones {
-            params: ListZonesParams::default(),
-        };
-
-        let zones = self.client.request(&list_zones).await?;
-
-        let peek = zones.result.len();
-        info!("Cloudflare zones: {:?}", peek);
-
-        Ok(zones.result)
     }
 }

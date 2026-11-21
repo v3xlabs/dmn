@@ -6,12 +6,13 @@ mod icons;
 mod page;
 mod provider;
 mod row;
+mod zone;
 
 use chrono::Utc;
 use poem::{error::InternalServerError, web::Data};
 use poem_openapi::payload::Html;
 
-use crate::models::{domain::Domain, notification::Notification};
+use crate::models::{dns_domain::DnsDomain, domain::Domain, notification::Notification};
 use crate::state::AppState;
 
 use self::page::PageData;
@@ -25,7 +26,14 @@ pub async fn web_endpoint(state: Data<&AppState>) -> poem::Result<Html<String>> 
     let notifications = Notification::latest_per_domain(&state, HISTORY_PER_DOMAIN)
         .await
         .map_err(InternalServerError)?;
-    let page = PageData::new(domains, notifications, Utc::now());
+    // Stored zones outlive a removed token, so they only count while Cloudflare is configured.
+    let zones = match state.cloudflare {
+        Some(_) => DnsDomain::find_by_provider(&state, "cloudflare")
+            .await
+            .map_err(InternalServerError)?,
+        None => Vec::new(),
+    };
+    let page = PageData::new(domains, notifications, zones, Utc::now());
 
     Ok(Html(page.render().into_string()))
 }

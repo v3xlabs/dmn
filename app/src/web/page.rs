@@ -2,14 +2,16 @@ use std::collections::{BTreeMap, HashMap};
 
 use chrono::{DateTime, Utc};
 use maud::{html, Markup, PreEscaped, DOCTYPE};
+use tracing::warn;
 
-use crate::models::{domain::Domain, notification::Notification};
+use crate::models::{dns_domain::DnsDomain, domain::Domain, notification::Notification};
 
 use super::expiry::{relative_past, ExpiryTone};
 use super::history::Change;
 use super::icons;
 use super::provider::ProviderKind;
 use super::row::DomainRow;
+use super::zone::CloudflareZone;
 
 const THEME_INIT_SCRIPT: &str = r#"(function(){var s=null;try{s=localStorage.getItem("dmn-theme")}catch(e){}var d=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.classList.toggle("dark",s==="dark"||(s!=="light"&&d));})();"#;
 
@@ -17,13 +19,19 @@ const FAVICON_DATA_URI: &str = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 
 pub struct PageData {
     rows: Vec<DomainRow>,
+    zones: HashMap<String, CloudflareZone>,
     providers: BTreeMap<ProviderKind, usize>,
     now: DateTime<Utc>,
 }
 
 impl PageData {
     /// Rows keep this order on the page; the client sorts the Expires column by row index, so this is the only expiry sort rule.
-    pub fn new(domains: Vec<Domain>, notifications: Vec<Notification>, now: DateTime<Utc>) -> Self {
+    pub fn new(
+        domains: Vec<Domain>,
+        notifications: Vec<Notification>,
+        zones: Vec<DnsDomain>,
+        now: DateTime<Utc>,
+    ) -> Self {
         let mut changes: HashMap<String, Vec<Change>> = HashMap::new();
         for notification in &notifications {
             changes
@@ -31,6 +39,20 @@ impl PageData {
                 .or_default()
                 .push(Change::from(notification));
         }
+
+        let zones: HashMap<String, CloudflareZone> = zones
+            .iter()
+            .filter_map(|zone| match CloudflareZone::try_from(zone) {
+                Ok(parsed) => Some((zone.name.to_ascii_lowercase(), parsed)),
+                Err(error) => {
+                    warn!(
+                        "Skipping Cloudflare zone {} with unreadable metadata: {error}",
+                        zone.name
+                    );
+                    None
+                }
+            })
+            .collect();
 
         let mut rows: Vec<DomainRow> = domains
             .into_iter()
@@ -58,9 +80,18 @@ impl PageData {
 
         Self {
             rows,
+            zones,
             providers,
             now,
         }
+    }
+
+    fn zone_for(&self, row: &DomainRow) -> Option<&CloudflareZone> {
+        // Cloudflare Registrar requires a Cloudflare zone and the row already shows Cloudflare as provider.
+        if row.provider == ProviderKind::Cloudflare {
+            return None;
+        }
+        self.zones.get(&row.domain.name.to_ascii_lowercase())
     }
 
     pub fn render(&self) -> Markup {
@@ -225,7 +256,7 @@ impl PageData {
                     }
                     tbody id="domain-rows" {
                         @for (index, row) in self.rows.iter().enumerate() {
-                            (row.render_row(index, self.now))
+                            (row.render_row(index, self.zone_for(row), self.now))
                         }
                     }
                 }
@@ -234,7 +265,7 @@ impl PageData {
                     button type="button" class="btn btn-secondary" id="reset-filters-btn" { "Reset filters" }
                 }
                 @for (index, row) in self.rows.iter().enumerate() {
-                    (row.render_detail(index, self.now))
+                    (row.render_detail(index, self.zone_for(row), self.now))
                 }
             }
         }

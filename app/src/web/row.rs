@@ -10,6 +10,7 @@ use super::expiry::{relative_past, Expiry};
 use super::history::Change;
 use super::icons;
 use super::provider::ProviderKind;
+use super::zone::CloudflareZone;
 
 #[derive(Debug)]
 pub struct DomainRow {
@@ -54,7 +55,12 @@ impl DomainRow {
         .to_lowercase()
     }
 
-    pub fn render_row(&self, index: usize, now: DateTime<Utc>) -> Markup {
+    pub fn render_row(
+        &self,
+        index: usize,
+        zone: Option<&CloudflareZone>,
+        now: DateTime<Utc>,
+    ) -> Markup {
         let latest_change = self.changes.first();
         let renew = self.domain.ext_auto_renew.map(|on| match on {
             true => ("ok", "Auto-renew on"),
@@ -84,7 +90,15 @@ impl DomainRow {
                     }
                 }
                 td {
-                    div class="domain-name" { (domain_name(&self.domain.name)) }
+                    div class="domain-line" {
+                        div class="domain-name" { (domain_name(&self.domain.name)) }
+                        @if zone.is_some() {
+                            span class="zone-hint has-tip" role="img" aria-label="Cloudflare zone" {
+                                (icons::CLOUDFLARE)
+                                span class="tip" { "Cloudflare zone" }
+                            }
+                        }
+                    }
                     div class="provider-inline" { (self.provider_mark()) }
                 }
                 td { (self.provider_mark()) }

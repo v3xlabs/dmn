@@ -820,10 +820,42 @@ th[aria-sort="descending"] .sort-desc {
   background: var(--sky);
 }
 
+.domain-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .domain-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.zone-hint {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  filter: grayscale(1);
+  transition: filter var(--dur-press) var(--ease-out);
+}
+
+.domain-row:hover .zone-hint,
+.domain-row[data-selected="true"] .zone-hint {
+  filter: none;
+}
+
+.zone-hint svg {
+  width: 100%;
+  height: 100%;
+}
+
+.zone-hint .tip {
+  right: auto;
+  left: 0;
 }
 
 .domain-sld {

@@ -7,13 +7,13 @@ use async_std::{
 use tracing::{error, info, warn};
 
 use crate::{
-    modules::{domains::diff_provider, DomainService},
+    modules::{domains::diff_provider, DNSService, DomainService},
     state::AppState,
     Error,
 };
 
 pub async fn start_schedule(state: &AppState) {
-    let porkbun_loop = async {
+    let provider_loop = async {
         if let Err(e) = do_loop(state).await {
             error!("Error in schedule: {}", e);
         }
@@ -31,10 +31,16 @@ pub async fn start_schedule(state: &AppState) {
             ens.run_schedule(state).await;
         }
     };
-    porkbun_loop.join(ens_loop).await;
+    provider_loop.join(ens_loop).await;
 }
 
 async fn do_loop(state: &AppState) -> Result<(), Error> {
+    if let Some(cloudflare) = &state.cloudflare {
+        if let Err(error) = cloudflare.ingest_dns_domains(state).await {
+            error!("Cloudflare zone sync failed: {error}");
+        }
+    }
+
     if let Some(porkbun) = &state.porkbun {
         let notifications = diff_provider(state, "porkbun", porkbun).await?.notifications;
 

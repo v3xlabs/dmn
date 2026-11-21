@@ -5,9 +5,15 @@ use super::expiry::{format_utc, relative_past, ExpiryTone};
 use super::history::{Change, ChangeLine};
 use super::icons;
 use super::row::{domain_name, DomainRow};
+use super::zone::CloudflareZone;
 
 impl DomainRow {
-    pub fn render_detail(&self, index: usize, now: DateTime<Utc>) -> Markup {
+    pub fn render_detail(
+        &self,
+        index: usize,
+        zone: Option<&CloudflareZone>,
+        now: DateTime<Utc>,
+    ) -> Markup {
         html! {
             template id={ "detail-" (index) } {
                 header class="drawer-head" {
@@ -25,6 +31,9 @@ impl DomainRow {
                 div class="drawer-body" {
                     (self.render_lifecycle(now))
                     (self.render_registrar())
+                    @if let Some(zone) = zone {
+                        (zone.render())
+                    }
                     (self.render_history())
                 }
             }
@@ -84,18 +93,7 @@ impl DomainRow {
                         }
                     }
                     @if !nameservers.is_empty() {
-                        ul class="record-list" aria-label="Nameservers" {
-                            @for nameserver in nameservers {
-                                li class="record-row" {
-                                    span class="record-type" { "NS" }
-                                    span class="record-value mono" { (nameserver) }
-                                    button type="button" class="copy-btn has-tip" data-copy=(nameserver) aria-label="Copy" {
-                                        (icons::COPY)
-                                        span class="tip" { "Copy" }
-                                    }
-                                }
-                            }
-                        }
+                        (nameserver_list("Nameservers", nameservers))
                     }
                 }
             }
@@ -150,11 +148,46 @@ impl Change {
     }
 }
 
+impl CloudflareZone {
+    fn render(&self) -> Markup {
+        html! {
+            section class="detail-section" {
+                div class="detail-head" {
+                    h3 class="detail-title" { "Cloudflare" }
+                }
+                dl class="kv-grid" {
+                    (kv("Zone status", &self.status.to_string(), false))
+                }
+                @if !self.nameservers.is_empty() {
+                    (nameserver_list("Cloudflare nameservers", &self.nameservers))
+                }
+            }
+        }
+    }
+}
+
 fn kv(label: &str, value: &str, mono: bool) -> Markup {
     html! {
         div class="kv" {
             dt class="kv-label" { (label) }
             dd class={ "kv-value" @if mono { " mono" } } { (value) }
+        }
+    }
+}
+
+fn nameserver_list(label: &str, nameservers: &[String]) -> Markup {
+    html! {
+        ul class="record-list" aria-label=(label) {
+            @for nameserver in nameservers {
+                li class="record-row" {
+                    span class="record-type" { "NS" }
+                    span class="record-value mono" { (nameserver) }
+                    button type="button" class="copy-btn has-tip" data-copy=(nameserver) aria-label="Copy" {
+                        (icons::COPY)
+                        span class="tip" { "Copy" }
+                    }
+                }
+            }
         }
     }
 }
