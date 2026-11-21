@@ -70,7 +70,7 @@ You can configure the daemon by providing any of the configuration variables as 
 | RSS        | Optional                 | expiry & registration rss generation (`rss.xml` format) |
 | Porkbun    | Optional                 | domains & dns                                           |
 | Cloudflare | Optional                 | domains & dns                                           |
-| ENS        | Optional                 | ENSv1, upgraded, and ENSv2 via Ethereum RPC (`ENS_NAMES`, `ENS_RPC_URL`) |
+| ENS        | Optional                 | second-level `.eth` names on ENSv1, upgraded, and ENSv2 via Ethereum RPC (`ENS_NAMES`, `ENS_RPC_URL`) |
 
 ### Calendar
 

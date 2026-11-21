@@ -3,12 +3,10 @@ use tiny_keccak::{Hasher, Keccak};
 
 use super::EvmAddress;
 
-/// Upper bound on Unix timestamps converted into `DateTime<Utc>` (`9999-12-31T23:59:59Z`) because non-expiring ENSv2 entries use `u64::MAX`, which exceeds RFC3339 and SQLite date ranges.
+/// Upper bound on Unix timestamps converted into `DateTime<Utc>` (`9999-12-31T23:59:59Z`) because `Graveyard.clear()` registrations and oversized words decode near `u64::MAX`, which exceeds RFC3339 and SQLite date ranges.
 pub const MAX_SUPPORTED_TIMESTAMP: u64 = 253_402_300_799;
 
 const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
-const FUSE_CANNOT_UNWRAP: u32 = 1 << 0;
-const FUSE_PARENT_CANNOT_CONTROL: u32 = 1 << 16;
 
 pub fn keccak256(input: &[u8]) -> [u8; 32] {
     let mut keccak = Keccak::v256();
@@ -97,11 +95,6 @@ impl<'a> AbiWords<'a> {
         Some(u64::from_be_bytes(w[24..32].try_into().ok()?))
     }
 
-    pub fn u32(&self, index: usize) -> Option<u32> {
-        let w = self.word(index)?;
-        Some(u32::from_be_bytes(w[28..32].try_into().ok()?))
-    }
-
     pub fn bytes32(&self, index: usize) -> Option<[u8; 32]> {
         self.word(index)?.try_into().ok()
     }
@@ -147,44 +140,6 @@ impl TryFrom<&[u8]> for V2State {
             expiry,
             latest_owner,
             resource,
-        })
-    }
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct WrapperData {
-    pub owner: Option<String>,
-    pub fuses: u32,
-    pub expiry: u64,
-}
-
-impl WrapperData {
-    pub fn state_label(&self) -> &'static str {
-        let pcc = (self.fuses & FUSE_PARENT_CANNOT_CONTROL) != 0;
-        let cannot_unwrap = (self.fuses & FUSE_CANNOT_UNWRAP) != 0;
-        if pcc && cannot_unwrap {
-            "locked"
-        } else if pcc {
-            "emancipated"
-        } else {
-            "wrapped"
-        }
-    }
-
-    pub fn is_emancipated(&self) -> bool {
-        (self.fuses & FUSE_PARENT_CANNOT_CONTROL) != 0
-    }
-}
-
-impl TryFrom<&[u8]> for WrapperData {
-    type Error = &'static str;
-
-    fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
-        let words = AbiWords::new(data);
-        Ok(Self {
-            owner: words.address(0).ok_or("missing wrapper owner")?,
-            fuses: words.u32(1).ok_or("missing wrapper fuses")?,
-            expiry: words.u64(2).ok_or("missing wrapper expiry")?,
         })
     }
 }

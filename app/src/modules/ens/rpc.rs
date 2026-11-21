@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{
-    abi::{keccak256, AbiWords, Calldata, V2State, WrapperData},
+    abi::{keccak256, AbiWords, Calldata, V2State},
     resolve::{V1Probe, V2Probe},
     EnsDomain, EnsName, EvmAddress,
 };
@@ -13,7 +13,6 @@ use super::{
 pub const DEFAULT_ENS_RPC_URL: &str = "https://ethereum-rpc.publicnode.com";
 
 /// Canonical Ethereum Mainnet ENS contract addresses from `docs.ens.domains/learn/deployments`.
-pub const ROOT_REGISTRY_V2: &str = "0x2553c09be6447beffdb86fa622ad41fb8f77a91e";
 pub const ETH_REGISTRY_V2: &str = "0xf60aba43e1f7f3dab1186ff03b561401c9df85e2";
 pub const GRAVEYARD_V2: &str = "0xda021a2c1c2f99574d861ef8c6fa745851beb7f6";
 pub const ENS_REGISTRY_V1: &str = "0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e";
@@ -22,9 +21,6 @@ pub const NAME_WRAPPER_V1: &str = "0xd4416b13d2b3a9abae7acd5d6c2bbdbe25686401";
 
 /// Nybble 8 marker role set by `PermissionedRegistry._register()` when promoting a premigrated `RESERVED` v1 slot to `REGISTERED`, which fresh ENSv2 registrations never hold.
 const ROLE_WAS_RESERVED_BIT: u64 = 1_u64 << 32;
-
-/// Names with more than 16 labels skip the ENSv2 lookup and resolve through ENSv1 only, which bounds one lookup to 16 sequential `getSubregistry` calls.
-const MAX_SUBREGISTRY_DEPTH: usize = 16;
 
 #[derive(Serialize)]
 struct RpcRequest<'a> {
@@ -58,11 +54,80 @@ impl<'a> RpcClient<'a> {
     }
 
     pub async fn resolve_name(&self, name: &EnsName) -> Result<Option<EnsDomain>, Error> {
-        let labels = name.labels();
-        if name.is_eth_2ld() {
-            return self.resolve_eth_2ld(name, labels[0]).await;
-        }
-        self.resolve_hierarchical(name, &labels).await
+        let label = name.label();
+        let lh = keccak256(label.as_bytes());
+        let nh = name.namehash();
+        let calls = [
+            (ETH_REGISTRY_V2, Calldata::bytes32("getState(uint256)", &lh)),
+            (
+                ETH_REGISTRY_V2,
+                Calldata::string("getResolver(string)", label),
+            ),
+            (ENS_REGISTRY_V1, Calldata::bytes32("owner(bytes32)", &nh)),
+            (ENS_REGISTRY_V1, Calldata::bytes32("resolver(bytes32)", &nh)),
+            (
+                BASE_REGISTRAR_V1,
+                Calldata::bytes32("nameExpires(uint256)", &lh),
+            ),
+            (
+                BASE_REGISTRAR_V1,
+                Calldata::bytes32("ownerOf(uint256)", &lh),
+            ),
+            (NAME_WRAPPER_V1, Calldata::bytes32("ownerOf(uint256)", &nh)),
+        ];
+        let results = self.batch_call(&calls).await?;
+        let address_at = |idx: usize| {
+            results[idx]
+                .as_deref()
+                .ok()
+                .and_then(|b| AbiWords::new(b).address(0))
+                .flatten()
+        };
+
+        let v2_state = results[0]
+            .as_deref()
+            .map_err(|err| anyhow!("ETHRegistry.getState reverted for {name}: {err}"))
+            .and_then(|b| V2State::try_from(b).map_err(|e| anyhow!("{e}")))?;
+
+        let v1_registry_owner = results[2]
+            .as_deref()
+            .map_err(|err| anyhow!("ENSRegistry.owner failed for {name}: {err}"))
+            .and_then(|b| {
+                AbiWords::new(b)
+                    .address(0)
+                    .ok_or_else(|| anyhow!("invalid owner ABI"))
+            })?;
+        let v1_expiry = results[4]
+            .as_deref()
+            .map_err(|err| anyhow!("BaseRegistrar.nameExpires failed for {name}: {err}"))
+            .and_then(|b| {
+                AbiWords::new(b)
+                    .u64(0)
+                    .ok_or_else(|| anyhow!("invalid expiry ABI"))
+            })?;
+
+        let was_reserved = match &v2_state.latest_owner {
+            Some(owner) => {
+                self.query_was_reserved(ETH_REGISTRY_V2, &v2_state.resource, owner)
+                    .await?
+            }
+            None => false,
+        };
+
+        let v2 = V2Probe {
+            state: v2_state,
+            was_reserved,
+            resolver: address_at(1),
+        };
+        let v1 = V1Probe {
+            registry_owner: v1_registry_owner,
+            resolver: address_at(3),
+            base_registrar_owner: address_at(5),
+            base_registrar_expiry: v1_expiry,
+            wrapper_owner: address_at(6),
+        };
+
+        Ok(EnsDomain::from_probes(name, &v2, &v1, Utc::now()))
     }
 
     async fn batch_call(
@@ -141,210 +206,6 @@ impl<'a> RpcClient<'a> {
             }
         }
         Ok(decoded)
-    }
-
-    async fn resolve_eth_2ld(
-        &self,
-        name: &EnsName,
-        label: &str,
-    ) -> Result<Option<EnsDomain>, Error> {
-        let lh = keccak256(label.as_bytes());
-        let nh = name.namehash();
-        let calls = [
-            (ETH_REGISTRY_V2, Calldata::bytes32("getState(uint256)", &lh)),
-            (
-                ETH_REGISTRY_V2,
-                Calldata::string("getResolver(string)", label),
-            ),
-            (
-                ETH_REGISTRY_V2,
-                Calldata::string("getSubregistry(string)", label),
-            ),
-            (ENS_REGISTRY_V1, Calldata::bytes32("owner(bytes32)", &nh)),
-            (ENS_REGISTRY_V1, Calldata::bytes32("resolver(bytes32)", &nh)),
-            (
-                BASE_REGISTRAR_V1,
-                Calldata::bytes32("nameExpires(uint256)", &lh),
-            ),
-            (
-                BASE_REGISTRAR_V1,
-                Calldata::bytes32("ownerOf(uint256)", &lh),
-            ),
-            (NAME_WRAPPER_V1, Calldata::bytes32("getData(uint256)", &nh)),
-        ];
-        let results = self.batch_call(&calls).await?;
-
-        let v2_state = results[0]
-            .as_deref()
-            .map_err(|err| anyhow!("ETHRegistry.getState reverted for {name}: {err}"))
-            .and_then(|b| V2State::try_from(b).map_err(|e| anyhow!("{e}")))?;
-
-        let v1_registry_owner = results[3]
-            .as_deref()
-            .map_err(|err| anyhow!("ENSRegistry.owner failed for {name}: {err}"))
-            .and_then(|b| {
-                AbiWords::new(b)
-                    .address(0)
-                    .ok_or_else(|| anyhow!("invalid owner ABI"))
-            })?;
-        let v1_expiry = results[5]
-            .as_deref()
-            .map_err(|err| anyhow!("BaseRegistrar.nameExpires failed for {name}: {err}"))
-            .and_then(|b| {
-                AbiWords::new(b)
-                    .u64(0)
-                    .ok_or_else(|| anyhow!("invalid expiry ABI"))
-            })?;
-
-        let was_reserved = match &v2_state.latest_owner {
-            Some(owner) => {
-                self.query_was_reserved(ETH_REGISTRY_V2, &v2_state.resource, owner)
-                    .await?
-            }
-            None => false,
-        };
-
-        let v2 = V2Probe {
-            state: Some(v2_state),
-            was_reserved,
-            resolver: results[1]
-                .as_deref()
-                .ok()
-                .and_then(|b| AbiWords::new(b).address(0))
-                .flatten(),
-            subregistry: results[2]
-                .as_deref()
-                .ok()
-                .and_then(|b| AbiWords::new(b).address(0))
-                .flatten(),
-        };
-        let v1 = V1Probe {
-            registry_owner: v1_registry_owner,
-            resolver: results[4]
-                .as_deref()
-                .ok()
-                .and_then(|b| AbiWords::new(b).address(0))
-                .flatten(),
-            base_registrar_owner: results[6]
-                .as_deref()
-                .ok()
-                .and_then(|b| AbiWords::new(b).address(0))
-                .flatten(),
-            base_registrar_expiry: v1_expiry,
-            wrapper: results[7]
-                .as_deref()
-                .ok()
-                .and_then(|b| WrapperData::try_from(b).ok()),
-        };
-
-        Ok(EnsDomain::from_probes(name, &v2, &v1, Utc::now()))
-    }
-
-    async fn resolve_hierarchical(
-        &self,
-        name: &EnsName,
-        labels: &[&str],
-    ) -> Result<Option<EnsDomain>, Error> {
-        let mut v2 = V2Probe::default();
-        if labels.len() <= MAX_SUBREGISTRY_DEPTH {
-            if let Some(parent_registry) = self.walk_v2_parent(labels).await? {
-                let leaf = labels[0];
-                let lh = keccak256(leaf.as_bytes());
-                let calls = [
-                    (
-                        parent_registry.as_str(),
-                        Calldata::bytes32("getState(uint256)", &lh),
-                    ),
-                    (
-                        parent_registry.as_str(),
-                        Calldata::string("getResolver(string)", leaf),
-                    ),
-                    (
-                        parent_registry.as_str(),
-                        Calldata::string("getSubregistry(string)", leaf),
-                    ),
-                ];
-                let results = self.batch_call(&calls).await?;
-                if let Some(state) = results[0]
-                    .as_deref()
-                    .ok()
-                    .and_then(|b| V2State::try_from(b).ok())
-                {
-                    v2 = V2Probe {
-                        state: Some(state),
-                        // Subnames in UserRegistry were not batch-premigrated as RESERVED.
-                        was_reserved: false,
-                        resolver: results[1]
-                            .as_deref()
-                            .ok()
-                            .and_then(|b| AbiWords::new(b).address(0))
-                            .flatten(),
-                        subregistry: results[2]
-                            .as_deref()
-                            .ok()
-                            .and_then(|b| AbiWords::new(b).address(0))
-                            .flatten(),
-                    };
-                }
-            }
-        }
-
-        let nh = name.namehash();
-        let v1_calls = [
-            (ENS_REGISTRY_V1, Calldata::bytes32("owner(bytes32)", &nh)),
-            (ENS_REGISTRY_V1, Calldata::bytes32("resolver(bytes32)", &nh)),
-            (NAME_WRAPPER_V1, Calldata::bytes32("getData(uint256)", &nh)),
-        ];
-        let v1_results = self.batch_call(&v1_calls).await?;
-        let v1 = V1Probe {
-            registry_owner: v1_results[0]
-                .as_deref()
-                .ok()
-                .and_then(|b| AbiWords::new(b).address(0))
-                .flatten(),
-            resolver: v1_results[1]
-                .as_deref()
-                .ok()
-                .and_then(|b| AbiWords::new(b).address(0))
-                .flatten(),
-            base_registrar_owner: None,
-            base_registrar_expiry: 0,
-            wrapper: v1_results[2]
-                .as_deref()
-                .ok()
-                .and_then(|b| WrapperData::try_from(b).ok()),
-        };
-
-        Ok(EnsDomain::from_probes(name, &v2, &v1, Utc::now()))
-    }
-
-    async fn walk_v2_parent(&self, labels: &[&str]) -> Result<Option<String>, Error> {
-        if labels.len() < 2 {
-            return Ok(Some(ROOT_REGISTRY_V2.to_string()));
-        }
-        let (mut current, start) =
-            if *labels.last().expect("EnsName has at least one label") == "eth" {
-                (ETH_REGISTRY_V2.to_string(), labels.len() - 1)
-            } else {
-                (ROOT_REGISTRY_V2.to_string(), labels.len())
-            };
-        for idx in (1..start).rev() {
-            let calls = [(
-                current.as_str(),
-                Calldata::string("getSubregistry(string)", labels[idx]),
-            )];
-            let results = self.batch_call(&calls).await?;
-            match results[0]
-                .as_deref()
-                .ok()
-                .and_then(|b| AbiWords::new(b).address(0))
-                .flatten()
-            {
-                Some(next) => current = next,
-                None => return Ok(None),
-            }
-        }
-        Ok(Some(current))
     }
 
     async fn query_was_reserved(

@@ -32,20 +32,10 @@ impl EnsName {
         &self.0
     }
 
-    pub fn is_reverse(&self) -> bool {
-        self.0.ends_with(".addr.reverse")
-    }
-
-    pub fn is_eth_2ld(&self) -> bool {
-        let mut parts = self.0.split('.');
-        let Some(label) = parts.next() else {
-            return false;
-        };
-        !label.is_empty() && parts.next() == Some("eth") && parts.next().is_none()
-    }
-
-    pub fn labels(&self) -> Vec<&str> {
-        self.0.split('.').collect()
+    pub fn label(&self) -> &str {
+        self.0
+            .strip_suffix(".eth")
+            .expect("EnsName holds a second-level .eth name")
     }
 
     pub fn namehash(&self) -> [u8; 32] {
@@ -66,10 +56,10 @@ impl FromStr for EnsName {
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
         let normalized = raw.trim().trim_end_matches('.').to_ascii_lowercase();
-        if normalized.is_empty() || normalized.split('.').any(str::is_empty) {
-            return Err("invalid ENS name");
+        match normalized.strip_suffix(".eth") {
+            Some(label) if !label.is_empty() && !label.contains('.') => Ok(Self(normalized)),
+            _ => Err("only second-level .eth names are tracked"),
         }
-        Ok(Self(normalized))
     }
 }
 
@@ -145,7 +135,7 @@ impl From<RawEnsConfig> for EnsConfig {
                         names.push(name);
                     }
                 }
-                Err(_) => warn!(name = %entry, "ignoring invalid ENS name in config"),
+                Err(reason) => warn!(ens.name = %entry, reason, "skipping ENS name in config"),
             }
         }
 
@@ -289,17 +279,13 @@ pub struct EnsMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wrapper_state: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub wrapper_expiry_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub resolver: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub subregistry: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct EnsDomain {
     pub name: String,
-    pub expiry_date: Option<DateTime<Utc>>,
+    pub expiry_date: DateTime<Utc>,
     pub registration_date: Option<DateTime<Utc>>,
     pub metadata: EnsMetadata,
 }
@@ -318,9 +304,7 @@ impl fmt::Display for EnsDomain {
         if let Some(manager) = &self.metadata.manager {
             writeln!(f, "Manager:      {manager}")?;
         }
-        if let Some(expiry) = self.expiry_date {
-            writeln!(f, "Expires:      {}", expiry.to_rfc3339())?;
-        }
+        writeln!(f, "Expires:      {}", self.expiry_date.to_rfc3339())?;
         if let Some(grace) = self.metadata.grace_ends_at {
             writeln!(f, "Grace ends:   {}", grace.to_rfc3339())?;
         }
@@ -332,9 +316,6 @@ impl fmt::Display for EnsDomain {
         }
         if let Some(resolver) = &self.metadata.resolver {
             writeln!(f, "Resolver:     {resolver}")?;
-        }
-        if let Some(subregistry) = &self.metadata.subregistry {
-            writeln!(f, "Subregistry:  {subregistry}")?;
         }
         Ok(())
     }

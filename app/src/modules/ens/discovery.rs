@@ -43,7 +43,7 @@ struct DiscoveryRow {
 impl DiscoveryRow {
     fn into_candidate_name(self, is_former_owner: bool) -> Option<EnsName> {
         let name = self.name.parse::<EnsName>().ok()?;
-        if name.is_reverse() || name.as_str().contains('[') {
+        if name.as_str().contains('[') {
             return None;
         }
         let status = self

@@ -23,9 +23,6 @@ impl EnsService {
         let rpc = RpcClient::new(&self.client, self.rpc_url());
         let mut resolved = Vec::with_capacity(candidates.len());
         for name in candidates {
-            if name.is_reverse() {
-                continue;
-            }
             match rpc.resolve_name(&name).await? {
                 Some(domain) => resolved.push(domain),
                 None => {
@@ -78,7 +75,7 @@ impl DomainService for EnsService {
                 ens_domain.name,
                 "ens".to_string(),
                 external_id,
-                ens_domain.expiry_date,
+                Some(ens_domain.expiry_date),
                 ens_domain.registration_date,
                 None,
                 None,
