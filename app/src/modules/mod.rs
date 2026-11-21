@@ -5,7 +5,7 @@ pub mod domains;
 pub mod ens;
 pub mod ntfy;
 pub mod porkbun;
-pub mod whois;
+pub mod registry;
 
 pub enum Synced {
     Listed(Domain),

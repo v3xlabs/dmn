@@ -7,7 +7,8 @@ use figment::Figment;
 use porkbun::PorkbunCommands;
 use crate::models::domain::Domain;
 use crate::modules::{
-    cloudflare::CloudflareService, whois::whois,
+    cloudflare::CloudflareService,
+    registry::{name::DomainName, Registry},
 };
 use crate::state::{AppState, AppStateInner};
 use crate::{server, util, Error};
@@ -61,7 +62,7 @@ enum Commands {
     },
     /// fzf extension
     Fzf,
-    /// Whois related commands
+    /// Look up registry data over RDAP, or port-43 WHOIS where the TLD has no RDAP
     Whois {
         /// The domain name to query
         domain: String,
@@ -295,11 +296,13 @@ pub async fn handle_args() -> Result<(), Error> {
             }
         }
         Commands::Whois { domain, json } => {
-            if !json {
-                println!("Querying Whois for domain: {}", domain);
+            let name: DomainName = domain.parse().map_err(Error::msg)?;
+            let lookup = Registry::new().lookup(&name).await?;
+            if *json {
+                println!("{}", serde_json::to_string_pretty(&lookup)?);
+            } else {
+                print!("{lookup}");
             }
-            let result = whois(domain.clone(), *json).await?;
-            println!("{}", result);
         }
     }
 

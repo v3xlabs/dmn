@@ -92,7 +92,7 @@
                 cp ${webCss}/index.css src/web/dist/index.css
               '';
 
-              # Existing tests make live network calls to whois and Porkbun APIs.
+              # The Porkbun tests make live network calls to the Porkbun API.
               doCheck = false;
 
               meta = {
