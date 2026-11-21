@@ -4,6 +4,10 @@ version = "0.3.1-dev"
 authors = ["Luc <luc@v3x.email>"]
 edition = "2021"
 
+[features]
+default = []
+ens-discovery = []
+
 [dependencies]
 poem = { version = "3.1.6", features = [
     "rustls",
@@ -56,7 +60,8 @@ figment = { version = "0", features = ["env", "serde_json", "toml"] }
 # time = "0.3.37"
 # lazy_static = "1.5.0"
 # rs-snowflake = "0.6.0"
-# hex = "0.4.3"
+hex = "0.4.3"
+tiny-keccak = { version = "2.0.2", features = ["keccak"] }
 # ring = "0.17.8"
 # image = "0.25.5"
 # tree_magic = "0.2.3"

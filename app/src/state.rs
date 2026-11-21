@@ -1,9 +1,10 @@
 use crate::{
     cache::AppCache,
     database::Database,
-    modules::{cloudflare::CloudflareService, ntfy::NtfyService, porkbun::PorkbunService},
+    modules::{
+        cloudflare::CloudflareService, ens::EnsService, ntfy::NtfyService, porkbun::PorkbunService,
+    },
 };
-use async_std::path::Path;
 use dirs;
 use figment::{
     providers::{Env, Format, Toml},
@@ -37,41 +38,28 @@ pub struct AppStateInner {
     pub cache: AppCache,
     pub porkbun: Option<PorkbunService>,
     pub cloudflare: Option<CloudflareService>,
+    pub ens: Option<EnsService>,
     pub ntfy: Option<NtfyService>,
 }
 
-fn get_config_file(server: bool) -> Option<Figment> {
-    if !server {
-        return None;
-    }
+pub fn get_config_file(create_if_missing: bool) -> Option<Figment> {
+    let config_file = std::env::var("DMN_CONFIG_PATH")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| dirs::config_dir().unwrap().join("dmn").join("config.toml"));
 
-    let config_file = std::env::var("DMN_CONFIG_PATH").map(|path| PathBuf::from(&path)).unwrap_or_else(|_| {
-        let config_dir = dirs::config_dir().unwrap();
-        let config_dmn_dir = config_dir.join("dmn");
-        config_dmn_dir.join("config.toml")
-    });
-    let config_dmn_dir = config_file.parent().unwrap();
-
-    if !config_dmn_dir.exists() {
-        info!(
-            "Creating default config directory at {}",
-            config_dmn_dir.display()
-        );
-        let x = std::fs::create_dir_all(config_dmn_dir);
-
-        if let Err(e) = x {
-            error!("Failed to create config directory: {}", e);
+    if !config_file.exists() {
+        if !create_if_missing {
             return None;
         }
-    }
-
-    // if file doesnt exist create it by copying from hardcoded file `../config.toml`
-    if !config_file.exists() {
+        if let Some(dir) = config_file.parent().filter(|p| !p.exists()) {
+            info!("Creating default config directory at {}", dir.display());
+            if let Err(e) = std::fs::create_dir_all(dir) {
+                error!("Failed to create config directory: {}", e);
+                return None;
+            }
+        }
         info!("Creating default config file at {}", config_file.display());
-        let default_config = include_str!("../config.toml");
-        let x = std::fs::write(&config_file, default_config);
-
-        if let Err(e) = x {
+        if let Err(e) = std::fs::write(&config_file, include_str!("../config.toml")) {
             error!("Failed to create config file: {}", e);
             return None;
         }
@@ -84,14 +72,7 @@ fn get_config_file(server: bool) -> Option<Figment> {
 
 impl AppStateInner {
     pub async fn init(server: bool) -> Self {
-        // Load configuration from environment variables
-        let config_file = match get_config_file(server) {
-            Some(config_file) => config_file,
-            None => {
-                error!("Failed to load config file");
-                Figment::new()
-            }
-        };
+        let config_file = get_config_file(server).unwrap_or_default();
 
         // Determine database URL: prefer DMN_DATABASE_URL, else default
         let database_config = Figment::new()
@@ -133,6 +114,11 @@ impl AppStateInner {
         } else {
             None
         };
+        let ens = if server {
+            EnsService::try_init(&config_file).await
+        } else {
+            None
+        };
 
         let ntfy = NtfyService::try_init(&config_file).await;
 
@@ -142,6 +128,7 @@ impl AppStateInner {
             api,
             porkbun,
             cloudflare,
+            ens,
             ntfy,
         }
     }

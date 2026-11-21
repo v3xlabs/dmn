@@ -22,3 +22,11 @@ enabled = true
 #[porkbun.pricing]
 #enabled = true
 #interval = "1d"
+
+# ENS (direct Ethereum JSON-RPC for ENSv1, upgraded v1->v2, and ENSv2)
+# [ens]
+# names = ["vitalik.eth", "nick.eth"]
+# rpc_url = "https://ethereum-rpc.publicnode.com"
+# Optional (requires `--features ens-discovery`):
+# addresses = ["0x0000000000000000000000000000000000000000"]
+# discovery_url = "https://api.bigname.sh"

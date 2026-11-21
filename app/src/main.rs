@@ -12,6 +12,7 @@ pub type Error = anyhow::Error;
 
 #[async_std::main]
 async fn main() -> Result<(), Error> {
+    dotenvy::dotenv().ok();
     tracing_subscriber::fmt::init();
     tracing::info!("Starting dmn");
 

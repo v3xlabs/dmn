@@ -1,10 +1,11 @@
 use crate::{models::domain::Domain, state::AppState, Error};
 
 pub mod cloudflare;
+pub mod domains;
+pub mod ens;
+pub mod ntfy;
 pub mod porkbun;
 pub mod whois;
-pub mod domains;
-pub mod ntfy;
 
 pub trait DomainService {
     async fn ingest_domains(&self, state: &AppState) -> Result<Vec<Domain>, Error>;

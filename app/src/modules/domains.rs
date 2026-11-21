@@ -141,16 +141,22 @@ fn diff_to_human(
                 line = "".to_string();
 
                 for key in keys {
-                    let pre_value = pre.get(key).unwrap();
-                    let post_value = post.get(key).unwrap();
+                    let pre_value = pre.get(key).unwrap_or(&Value::Null);
+                    let post_value = post.get(key).unwrap_or(&Value::Null);
 
                     if pre_value != post_value {
                         match key.as_str() {
                             "status" => {
-                                let (pre_bool, post_bool) =
-                                    (bool_from_value(pre_value), bool_from_value(post_value));
-                                line +=
-                                    &format!(" - Status Changed: {} => {}\n", pre_bool, post_bool);
+                                if let (Some(a), Some(b)) =
+                                    (pre_value.as_str(), post_value.as_str())
+                                {
+                                    line += &format!(" - Status Changed: {a} => {b}\n");
+                                } else {
+                                    let (pre_bool, post_bool) =
+                                        (bool_from_value(pre_value), bool_from_value(post_value));
+                                    line +=
+                                        &format!(" - Status Changed: {pre_bool} => {post_bool}\n");
+                                }
                             }
                             "security_lock" => {
                                 let (pre_bool, post_bool) =

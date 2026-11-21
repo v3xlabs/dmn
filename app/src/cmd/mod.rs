@@ -2,6 +2,7 @@ use async_std::prelude::FutureExt;
 use clap::{Parser, Subcommand};
 use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Row, Table};
 use csv::Writer;
+use ens::EnsCommands;
 use figment::Figment;
 use porkbun::PorkbunCommands;
 use crate::models::domain::Domain;
@@ -14,6 +15,7 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 
+mod ens;
 mod porkbun;
 
 #[derive(Parser)]
@@ -46,6 +48,11 @@ enum Commands {
     Porkbun {
         #[command(subcommand)]
         subcommand: PorkbunCommands,
+    },
+    /// ENS related commands
+    Ens {
+        #[command(subcommand)]
+        subcommand: EnsCommands,
     },
     /// Cloudflare related commands
     Cloudflare {
@@ -184,11 +191,11 @@ pub async fn handle_args() -> Result<(), Error> {
                             }
                         });
                         let status_cell = match status.map(|s| s.to_ascii_uppercase()) {
-                            Some(ref s) if s == "ACTIVE" || s == "REGISTRATIONACTIVE" => {
+                            Some(s) if s == "ACTIVE" || s == "REGISTRATIONACTIVE" => {
                                 Cell::new("ACTIVE").fg(Color::Green)
                             }
-                            Some(ref s) if s == "AUCTION" => {
-                                Cell::new(status.unwrap()).fg(Color::Red)
+                            Some(s) if s == "AUCTION" || s == "EXPIRED" => {
+                                Cell::new(s).fg(Color::Red)
                             }
                             Some(s) => Cell::new(s).fg(Color::Yellow),
                             None => Cell::new("-").fg(Color::DarkGrey),
@@ -269,6 +276,9 @@ pub async fn handle_args() -> Result<(), Error> {
             }
         }
         Commands::Porkbun { subcommand } => {
+            subcommand.handle().await?;
+        }
+        Commands::Ens { subcommand } => {
             subcommand.handle().await?;
         }
         Commands::Cloudflare { subcommand } => {

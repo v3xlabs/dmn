@@ -42,6 +42,9 @@ The daemon will automatically keep track of your domains notifying you of new ad
     -   `dmn porkbun index` - Index your porkbun domains
 -   `dmn cloudflare`
     -   `dmn cloudflare index` - Index your cloudflare domains
+-   `dmn ens`
+    -   `dmn ens index` - Index configured ENS names directly via Ethereum RPC
+    -   `dmn ens lookup nick.eth` - Inspect an ENS name directly on-chain (`--json` for JSON output)
 -   `dmn whois`
     -   `dmn whois example.com` - Get the whois information example.com
     - `dmn whois --json example.com` - Get in json format
@@ -54,7 +57,7 @@ The daemon will automatically keep track of your domains notifying you of new ad
 | ---------- | ----------------------- | ---------------------------------------------------------------- |
 | Porkbun    | ✅ Implemented          | ❌ Not implemented yet                                           |
 | Cloudflare | ✅ Using Global API Key | ✅ Using Token API Key (DNS::Read, Zone::Read) or Global API Key |
-| ...        | ...                     | ...                                                              |
+| ENS        | ✅ ENSv1 & ENSv2 (RPC)  | ❌ Not applicable                                                |
 
 ## Configuration
 
@@ -67,6 +70,7 @@ You can configure the daemon by providing any of the configuration variables as 
 | RSS        | Optional                 | expiry & registration rss generation (`rss.xml` format) |
 | Porkbun    | Optional                 | domains & dns                                           |
 | Cloudflare | Optional                 | domains & dns                                           |
+| ENS        | Optional                 | ENSv1, upgraded, and ENSv2 via Ethereum RPC (`ENS_NAMES`, `ENS_RPC_URL`) |
 
 ### Calendar
 

@@ -48,7 +48,9 @@ async fn generate_calendar(state: &AppState) -> Calendar {
     let mut batched_events = HashMap::<String, Vec<String>>::new();
 
     for domain in domains {
-        let expiry_date = domain.ext_expiry_at.unwrap();
+        let Some(expiry_date) = domain.ext_expiry_at else {
+            continue;
+        };
         let expiry_date = if round_to_day {
             expiry_date.duration_trunc(Duration::days(1)).unwrap()
         } else {

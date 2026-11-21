@@ -1,4 +1,5 @@
 use crate::models::domain::Domain;
+use crate::modules::ens::EnsVersion;
 use crate::state::AppState;
 use chrono::{DateTime, Duration, Utc};
 use chrono_humanize::HumanTime;
@@ -9,6 +10,7 @@ pub fn provider_to_color(provider: &String) -> &str {
     match provider.as_str() {
         "porkbun" => "text-[#EF7878]",
         "cloudflare" => "text-[#F48120]",
+        "ens" => "text-[#0080BC]",
         _ => "text-gray-500",
     }
 }
@@ -39,6 +41,7 @@ const porkbun_icon: maud::PreEscaped<&str> =
     maud::PreEscaped(include_str!("./public/porkbun_icon.svg"));
 const cloudflare_icon: maud::PreEscaped<&str> =
     maud::PreEscaped(include_str!("./public/cloudflare_icon.svg"));
+const ENS_ICON: maud::PreEscaped<&str> = maud::PreEscaped(include_str!("./public/ens.svg"));
 
 fn format_cloudflare_url(account_id: &str, domain: &str) -> String {
     format!(
@@ -49,16 +52,13 @@ fn format_cloudflare_url(account_id: &str, domain: &str) -> String {
 
 #[poem::handler]
 pub async fn web_endpoint(state: Data<&AppState>) -> poem_openapi::payload::Html<String> {
-    let domains = match Domain::get_all(&state).await {
-        Ok(domains) => domains,
-        Err(_) => vec![],
-    };
-
+    let domains = Domain::get_all(&state).await.unwrap_or_default();
     let total_domains = domains.len();
+    let now = Utc::now();
 
     let (already_expired_domains, active_domains): (Vec<Domain>, Vec<Domain>) = domains
         .into_iter()
-        .partition(|domain| domain.ext_expiry_at.unwrap_or(Utc::now()) < Utc::now());
+        .partition(|domain| domain.ext_expiry_at.is_some_and(|expiry| expiry < now));
 
     let markup: Markup = html! {
         (DOCTYPE)
@@ -67,7 +67,7 @@ pub async fn web_endpoint(state: Data<&AppState>) -> poem_openapi::payload::Html
                 meta charset="utf-8";
                 meta name="viewport" content="width=device-width, initial-scale=1.0";
                 title { "My Domains | dmn" }
-                style { (include_str!("./dist/index.css")) }
+                style { (maud::PreEscaped(include_str!("./dist/index.css"))) }
             }
             body class="w-full min-h-screen bg-gray-100 p-4 overflow-y-auto font-sans" {
                 div class="w-full max-w-content mx-auto flex flex-col gap-4" {
@@ -91,12 +91,12 @@ pub async fn web_endpoint(state: Data<&AppState>) -> poem_openapi::payload::Html
                         div class="card no-padding py-2 px-4 flex flex-col justify-between" {
                             h2 class="text-lg font-bold" { "Expiring" }
                             span class="text-sm text-gray-500" { "in next 30 days" }
-                            p class="text-2xl font-bold" { (active_domains.iter().filter(|d| d.ext_expiry_at.unwrap_or(Utc::now()) < Utc::now().checked_add_signed(Duration::days(30)).unwrap()).count()) }
+                            p class="text-2xl font-bold" { (active_domains.iter().filter(|d| d.ext_expiry_at.is_some_and(|dt| dt < now + Duration::days(30))).count()) }
                         }
                         div class="card no-padding py-2 px-4 flex flex-col justify-between" {
                             h2 class="text-lg font-bold" { "Expiring" }
                             span class="text-sm text-gray-500" { "in next year" }
-                            p class="text-2xl font-bold" { (active_domains.iter().filter(|d| d.ext_expiry_at.unwrap_or(Utc::now()) < Utc::now().checked_add_signed(Duration::days(365)).unwrap()).count()) }
+                            p class="text-2xl font-bold" { (active_domains.iter().filter(|d| d.ext_expiry_at.is_some_and(|dt| dt < now + Duration::days(365))).count()) }
                         }
                     }
                     div class="card" {
@@ -141,25 +141,48 @@ fn domain_table(domains: Vec<Domain>) -> Markup {
                                 (match domain.provider.as_str() {
                                     "porkbun" => porkbun_icon,
                                     "cloudflare" => cloudflare_icon,
+                                    "ens" => ENS_ICON,
                                     _ => icon_privacy,
                                 })
                                 (match domain.provider.as_str() {
-                                        "cloudflare" => {
-                                            html!(a href={(format_cloudflare_url(&domain.metadata.as_ref().unwrap().get("account_id").map_or("-".to_string(), |id| id.as_str().unwrap().to_string()), &domain.name))} target="_blank" {
-                                                span class="text-xs" { (domain.provider) }
-                                            })
-                                        },
-                                    _ => {
-                                        html!(span class="text-xs" { (domain.provider) })
+                                    "cloudflare" => {
+                                        let account_id = domain
+                                            .metadata
+                                            .as_ref()
+                                            .and_then(|m| m.get("account_id"))
+                                            .and_then(|id| id.as_str())
+                                            .unwrap_or("-");
+                                        html!(a href={(format_cloudflare_url(account_id, &domain.name))} target="_blank" {
+                                            span class="text-xs" { (domain.provider) }
+                                        })
                                     }
-                                }
-                                )
+                                    "ens" => {
+                                        let badge = domain
+                                            .metadata
+                                            .as_ref()
+                                            .and_then(EnsVersion::from_metadata)
+                                            .map(EnsVersion::badge);
+                                        html! {
+                                            a href={(format!("https://app.ens.domains/{}", domain.name))} target="_blank" class="hover:underline" {
+                                                span class="text-xs" { (domain.provider) }
+                                            }
+                                            @if let Some((label, badge_class)) = badge {
+                                                span class={"text-[10px] font-medium px-1.5 py-0.5 rounded " (badge_class)} { (label) }
+                                            }
+                                        }
+                                    }
+                                    _ => html!(span class="text-xs" { (domain.provider) }),
+                                })
                             }
                         }
-                        td class="w-full min-w-0" {
-                            span class="private" { (domain.name.split(".").next().unwrap()) }
-                            {"."}
-                            span class="text-gray-500" { (domain.name.split(".").skip(1).collect::<Vec<&str>>().join(".")) }
+                        td class="w-full min-w-0 break-all" {
+                            @if let Some((label, rest)) = domain.name.split_once('.') {
+                                span class="private" { (label) }
+                                {"."}
+                                span class="text-gray-500" { (rest) }
+                            } @else {
+                                span class="private" { (domain.name) }
+                            }
                         }
                         td class="pr-4" {
                             div class={(expiry_to_color(&domain.ext_expiry_at)) " text-xs whitespace-nowrap"} {
