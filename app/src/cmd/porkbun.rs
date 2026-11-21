@@ -45,7 +45,7 @@ impl PorkbunCommands {
                 // TODO: Implement actual indexing logic
 
                 if !no_domains {
-                    let notifications = diff_provider(&state, "porkbun", &porkbun).await?;
+                    let notifications = diff_provider(&state, "porkbun", &porkbun).await?.notifications;
 
                     if let Some(ntfy) = &state.ntfy {
                         if !notifications.is_empty() {

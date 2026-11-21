@@ -1,5 +1,5 @@
 use super::{pricing::ingest_domain_tld_prices, PorkbunService};
-use crate::{models::domain::Domain, modules::DomainService, state::AppState, util::serde_strint::string_or_int_to_option_i32};
+use crate::{models::domain::Domain, modules::{DomainService, Synced}, state::AppState, util::serde_strint::string_or_int_to_option_i32};
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -51,7 +51,7 @@ struct ListAllResponse {
 
 /// Based on https://porkbun.com/api/json/v3/documentation#
 impl DomainService for PorkbunService {
-    async fn ingest_domains(&self, state: &AppState) -> Result<Vec<Domain>, Error> {
+    async fn ingest_domains(&self, _state: &AppState) -> Result<Vec<Synced>, Error> {
         let api_key = self
             .config
             .api_key
@@ -84,7 +84,7 @@ impl DomainService for PorkbunService {
             return Err(anyhow::anyhow!("Domain listAll error: {}", resp.status));
         }
 
-        let mut result_domains: Vec<Domain> = Vec::new();
+        let mut result_domains: Vec<Synced> = Vec::new();
 
         for domain in resp.domains {
             let metadata = json!({
@@ -131,14 +131,11 @@ impl DomainService for PorkbunService {
                 ext_auto_renew,
                 ext_whois_privacy,
                 Some(metadata),
-                &state,
-            )
-            .await
-            .unwrap();
+            );
 
             info!("Porkbun domain ingested: {:?}", domain);
 
-            result_domains.push(domain);
+            result_domains.push(Synced::Listed(domain));
         }
 
         info!("Completed porkbun");

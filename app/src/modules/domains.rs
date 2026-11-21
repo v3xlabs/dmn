@@ -5,40 +5,57 @@ use tracing::info;
 
 use crate::{
     models::{domain::Domain, notification::Notification},
-    modules::DomainService,
+    modules::{DomainService, Synced},
     state::AppState,
 };
 
 const IGNORED_DIFF_KEYS: &[&str] = &["created_at", "updated_at"];
+
+pub struct SyncReport {
+    pub notifications: Vec<Notification>,
+    /// Names the provider could not check, so a schedule can retry them sooner than a full sync.
+    pub unchecked: usize,
+}
 
 //
 pub async fn diff_provider(
     state: &AppState,
     provider: &str,
     provider_domains: &impl DomainService,
-) -> Result<Vec<Notification>, anyhow::Error> {
+) -> Result<SyncReport, anyhow::Error> {
     let pre = Domain::find_by_provider(state, provider).await?;
 
-    let post = provider_domains.ingest_domains(state).await?;
+    let mut listed = Vec::new();
+    let mut departed = Vec::new();
+    let mut unchecked = Vec::new();
+    for outcome in provider_domains.ingest_domains(state).await? {
+        match outcome {
+            Synced::Listed(domain) => listed.push(domain),
+            Synced::Departed(domain) => departed.push(domain),
+            Synced::Unchecked(name) => unchecked.push(name),
+        }
+    }
+    let post: Vec<Domain> = listed
+        .iter()
+        .chain(&departed)
+        .chain(pre.iter().filter(|domain| unchecked.contains(&domain.name)))
+        .cloned()
+        .collect();
 
     let mut notifications = Vec::new();
 
-    // diff deletions
     let (additions, deletions, changes) = diff_changes(&pre, &post).await?;
 
-    for deletion in deletions {
-        info!("Domain deleted: {}", deletion);
+    let mut tx = state.database.pool.begin().await?;
 
-        Domain::delete_by_name(state, provider, &deletion).await?;
-
-        // TODO: notify user the domain was deleted
-        notifications.push(Notification::new(state, deletion, "delete", "Domain deleted".to_string()).await?);
+    for domain in &listed {
+        domain.save(&mut tx).await?;
     }
 
     for addition in additions {
         info!("New domain detected: {}", addition.name);
         // TODO: notify user the domain was added
-        notifications.push(Notification::new(state, addition.name, "add", "New domain detected".to_string()).await?);
+        notifications.push(Notification::new(&mut tx, addition.name, "add", "New domain detected".to_string()).await?);
     }
 
     for change in changes {
@@ -48,10 +65,24 @@ pub async fn diff_provider(
         let human = diff_to_human(change.0.name.clone(), change.1);
         info!("{}", human);
 
-        notifications.push(Notification::new(state, change.0.name, "change", human).await?);
+        notifications.push(Notification::new(&mut tx, change.0.name, "change", human).await?);
     }
 
-    Ok(notifications)
+    for deletion in deletions.into_iter().chain(departed.into_iter().map(|domain| domain.name)) {
+        info!("Domain deleted: {}", deletion);
+
+        Domain::delete_by_name(&mut tx, provider, &deletion).await?;
+
+        // TODO: notify user the domain was deleted
+        notifications.push(Notification::new(&mut tx, deletion, "delete", "Domain deleted".to_string()).await?);
+    }
+
+    tx.commit().await?;
+
+    Ok(SyncReport {
+        notifications,
+        unchecked: unchecked.len(),
+    })
 }
 
 pub async fn diff_changes(

@@ -105,6 +105,24 @@ impl<'a> RpcClient<'a> {
                     .u64(0)
                     .ok_or_else(|| anyhow!("invalid expiry ABI"))
             })?;
+        let owner_at = |idx: usize, call: &str| {
+            results[idx]
+                .as_deref()
+                .map_err(|err| anyhow!("{call} failed for {name}: {err}"))
+                .and_then(|b| {
+                    AbiWords::new(b)
+                        .address(0)
+                        .ok_or_else(|| anyhow!("invalid {call} ABI"))
+                })
+        };
+        let wrapper_owner = owner_at(6, "NameWrapper.ownerOf")?;
+        // `BaseRegistrar.ownerOf` reverts once the lease expires, so only a failure during an active lease leaves the owner unknown.
+        let lease_active = v1_expiry > Utc::now().timestamp().unsigned_abs();
+        let base_registrar_owner = match owner_at(5, "BaseRegistrar.ownerOf") {
+            Ok(owner) => owner,
+            Err(err) if lease_active => return Err(err),
+            Err(_) => None,
+        };
 
         let was_reserved = match &v2_state.latest_owner {
             Some(owner) => {
@@ -122,9 +140,9 @@ impl<'a> RpcClient<'a> {
         let v1 = V1Probe {
             registry_owner: v1_registry_owner,
             resolver: address_at(3),
-            base_registrar_owner: address_at(5),
+            base_registrar_owner,
             base_registrar_expiry: v1_expiry,
-            wrapper_owner: address_at(6),
+            wrapper_owner,
         };
 
         Ok(EnsDomain::from_probes(name, &v2, &v1, Utc::now()))

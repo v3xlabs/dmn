@@ -36,7 +36,7 @@ pub async fn start_schedule(state: &AppState) {
 
 async fn do_loop(state: &AppState) -> Result<(), Error> {
     if let Some(porkbun) = &state.porkbun {
-        let notifications = diff_provider(state, "porkbun", porkbun).await?;
+        let notifications = diff_provider(state, "porkbun", porkbun).await?.notifications;
 
         if let Some(ntfy) = &state.ntfy {
             if !notifications.is_empty() {

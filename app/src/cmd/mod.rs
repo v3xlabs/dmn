@@ -7,7 +7,7 @@ use figment::Figment;
 use porkbun::PorkbunCommands;
 use crate::models::domain::Domain;
 use crate::modules::{
-    cloudflare::CloudflareService, whois::whois, DomainService,
+    cloudflare::CloudflareService, whois::whois,
 };
 use crate::state::{AppState, AppStateInner};
 use crate::{server, util, Error};
@@ -290,7 +290,7 @@ pub async fn handle_args() -> Result<(), Error> {
             match subcommand {
                 CloudflareCommands::Index => {
                     println!("Indexing Cloudflare domains");
-                    cloudflare.ingest_domains(&state).await?;
+                    cloudflare.upsert_domains(&state).await?;
                 }
             }
         }

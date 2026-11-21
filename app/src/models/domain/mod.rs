@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use poem_openapi::Object;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::prelude::FromRow;
+use sqlx::{prelude::FromRow, SqliteConnection};
 
 use crate::state::AppState;
 
@@ -21,7 +21,7 @@ pub struct Domain {
 }
 
 impl Domain {
-    pub async fn new(
+    pub fn new(
         name: String,
         provider: String,
         external_id: String,
@@ -30,23 +30,35 @@ impl Domain {
         ext_auto_renew: Option<bool>,
         ext_whois_privacy: Option<bool>,
         metadata: Option<Value>,
-        state: &AppState,
-    ) -> Result<Self, sqlx::Error> {
-        let domain = sqlx::query_as::<_, Domain>(
+    ) -> Self {
+        Self {
+            name,
+            provider,
+            external_id: Some(external_id),
+            ext_expiry_at,
+            ext_registered_at,
+            ext_auto_renew,
+            ext_whois_privacy,
+            metadata,
+            created_at: None,
+            updated_at: None,
+        }
+    }
+
+    pub async fn save(&self, conn: &mut SqliteConnection) -> Result<Self, sqlx::Error> {
+        sqlx::query_as::<_, Domain>(
             "INSERT OR REPLACE INTO domains (name, provider, external_id, ext_expiry_at, ext_registered_at, ext_auto_renew, ext_whois_privacy, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *"
         )
-        .bind(&name)
-        .bind(&provider)
-        .bind(&external_id)
-        .bind(&ext_expiry_at)
-        .bind(&ext_registered_at)
-        .bind(&ext_auto_renew)
-        .bind(&ext_whois_privacy)
-        .bind(&metadata)
-        .fetch_one(&state.database.pool)
-        .await?;
-
-        Ok(domain)
+        .bind(&self.name)
+        .bind(&self.provider)
+        .bind(&self.external_id)
+        .bind(self.ext_expiry_at)
+        .bind(self.ext_registered_at)
+        .bind(self.ext_auto_renew)
+        .bind(self.ext_whois_privacy)
+        .bind(&self.metadata)
+        .fetch_one(conn)
+        .await
     }
 
     pub async fn get_all(state: &AppState) -> Result<Vec<Self>, sqlx::Error> {
@@ -70,11 +82,11 @@ impl Domain {
         Ok(domains)
     }
 
-    pub async fn delete_by_name(state: &AppState, provider: &str, name: &str) -> Result<(), sqlx::Error> {
+    pub async fn delete_by_name(conn: &mut SqliteConnection, provider: &str, name: &str) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM domains WHERE provider = ? AND name = ?")
             .bind(provider)
             .bind(name)
-            .execute(&state.database.pool)
+            .execute(conn)
             .await?;
 
         Ok(())

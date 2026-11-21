@@ -3,7 +3,7 @@ use cloudflare::endpoints::account::{list_accounts::ListAccountsParams, ListAcco
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use crate::{models::domain::Domain, modules::DomainService, state::AppState, Error};
+use crate::{models::domain::Domain, state::AppState, Error};
 
 use super::{
     domains_endpoint::{ListDomains, ListDomainsParams},
@@ -61,8 +61,9 @@ pub struct CloudflareDomain {
     transfer_conditions: serde_json::Value, //{\"exists\":true,\"not_premium\":true,\"not_secure\":true,\"not_started\":true,\"not_waiting\":false,\"supported_tld\":true}
 }
 
-impl DomainService for CloudflareService {
-    async fn ingest_domains(&self, state: &AppState) -> Result<Vec<Domain>, Error> {
+impl CloudflareService {
+    /// Accounts come from a single listing page, so Cloudflare rows are only upserted and Cloudflare stays out of `DomainService`, whose syncs delete what a listing leaves out.
+    pub async fn upsert_domains(&self, state: &AppState) -> Result<(), Error> {
         let accounts = ListAccounts {
             params: Some(ListAccountsParams::default()),
         };
@@ -123,10 +124,7 @@ impl DomainService for CloudflareService {
                     ext_auto_renew,
                     ext_whois_privacy,
                     Some(metadata),
-                    state,
-                )
-                .await
-                .unwrap();
+                );
 
                 info!("Cloudflare domain ingested: {:?}", domain);
 
@@ -136,11 +134,12 @@ impl DomainService for CloudflareService {
 
         info!("Completed cloudflare");
 
-        Ok(result_domains)
-    }
+        let mut tx = state.database.pool.begin().await?;
+        for domain in &result_domains {
+            domain.save(&mut tx).await?;
+        }
+        tx.commit().await?;
 
-    async fn ingest_domain_tld_prices_if_enabled(&self, state: &AppState) -> Result<(), Error> {
-        // TODO: Implement
         Ok(())
     }
 }

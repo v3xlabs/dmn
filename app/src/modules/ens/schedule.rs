@@ -2,7 +2,7 @@ use std::time::Duration as StdDuration;
 
 use async_std::task;
 use chrono::{DateTime, Duration, Utc};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use super::{EnsName, EnsService};
 use crate::{models::domain::Domain, modules::domains::diff_provider, state::AppState};
@@ -22,6 +22,7 @@ const ENS_ERROR_RETRY_SECS: u64 = 60 * 60;
 #[derive(Default)]
 pub struct RefreshSchedule {
     last_sync_at: Option<DateTime<Utc>>,
+    retry_at: Option<DateTime<Utc>>,
 }
 
 impl RefreshSchedule {
@@ -31,9 +32,26 @@ impl RefreshSchedule {
 
     pub fn mark_synced(&mut self, at: DateTime<Utc>) {
         self.last_sync_at = Some(at);
+        self.retry_at = None;
+    }
+
+    pub fn mark_partial(&mut self, at: DateTime<Utc>) {
+        self.last_sync_at = Some(at);
+        self.retry_at = Some(at + Duration::seconds(ENS_ERROR_RETRY_SECS as i64));
     }
 
     pub fn next_refresh_at(
+        &self,
+        stored_domains: &[Domain],
+        configured_names: &[EnsName],
+        now: DateTime<Utc>,
+    ) -> DateTime<Utc> {
+        let scheduled = self.scheduled_refresh_at(stored_domains, configured_names, now);
+        self.retry_at
+            .map_or(scheduled, |retry_at| scheduled.min(retry_at.max(now)))
+    }
+
+    fn scheduled_refresh_at(
         &self,
         stored_domains: &[Domain],
         configured_names: &[EnsName],
@@ -140,8 +158,18 @@ impl EnsService {
                 continue;
             }
 
-            match diff_provider(state, "ens", self).await {
-                Ok(_) => schedule.mark_synced(Utc::now()),
+            match diff_provider(state, "ens", self)
+                .await
+                .map(|report| report.unchecked)
+            {
+                Ok(0) => schedule.mark_synced(Utc::now()),
+                Ok(skipped) => {
+                    warn!(
+                        ens.skipped_count = skipped,
+                        "ENS refresh skipped names, retrying after the error delay"
+                    );
+                    schedule.mark_partial(Utc::now());
+                }
                 Err(err) => {
                     error!(error = %err, "adaptive ENS refresh failed");
                     task::sleep(StdDuration::from_secs(ENS_ERROR_RETRY_SECS)).await;

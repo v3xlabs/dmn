@@ -1,4 +1,5 @@
 use poem_openapi::Object;
+use sqlx::SqliteConnection;
 
 use crate::{state::AppState, Error};
 
@@ -12,7 +13,7 @@ pub struct Notification {
 }
 
 impl Notification {
-    pub async fn new(state: &AppState, domain: String, event: &str, message: String) -> Result<Self, Error> {
+    pub async fn new(conn: &mut SqliteConnection, domain: String, event: &str, message: String) -> Result<Self, Error> {
         let notification = sqlx::query_as!(
             Notification,
             "INSERT INTO notifications (domain, event, message) VALUES (?, ?, ?) RETURNING *",
@@ -20,7 +21,7 @@ impl Notification {
             event,
             message
         )
-        .fetch_one(&state.database.pool)
+        .fetch_one(conn)
         .await?;
 
         Ok(notification)
