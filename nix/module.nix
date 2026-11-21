@@ -12,13 +12,25 @@ let
 in
 {
   options.services.dmn = {
-    enable = lib.mkEnableOption "dmn domain management daemon (listens on 0.0.0.0:3000)";
+    enable = lib.mkEnableOption "dmn domain management daemon";
 
     package = lib.mkOption {
       type = lib.types.package;
       default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
       defaultText = lib.literalExpression "inputs.dmn.packages.\${pkgs.stdenv.hostPlatform.system}.default";
       description = "The dmn package to run.";
+    };
+
+    host = lib.mkOption {
+      type = lib.types.str;
+      default = "0.0.0.0";
+      description = "Address the HTTP server binds, passed to dmn via DMN_API_LISTEN.";
+    };
+
+    port = lib.mkOption {
+      type = lib.types.port;
+      default = 3000;
+      description = "Port the HTTP server binds, passed to dmn via DMN_API_LISTEN.";
     };
 
     databaseUrl = lib.mkOption {
@@ -74,6 +86,7 @@ in
       environment = {
         DMN_CONFIG_PATH = "${configFile}";
         DMN_DATABASE_URL = cfg.databaseUrl;
+        DMN_API_LISTEN = "${cfg.host}:${toString cfg.port}";
         HOME = "/var/lib/dmn";
         XDG_CONFIG_HOME = "/var/lib/dmn";
         RUST_LOG = lib.mkDefault "error,dmn=info";

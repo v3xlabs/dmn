@@ -212,7 +212,8 @@ pub async fn start_http(state: AppState) {
 
     let schedule_service = schedule::start_schedule(&state);
 
-    let x = Server::new(TcpListener::bind("0.0.0.0:3000"))
+    let listen = &state.api.as_ref().expect("server mode loads the api config").listen;
+    let x = Server::new(TcpListener::bind(listen.as_str()))
         .run(app);
 
     let _ = x.join(schedule_service).await;

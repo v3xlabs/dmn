@@ -23,6 +23,12 @@ pub struct DatabaseConfig {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ServerConfig {
     pub secret: String,
+    #[serde(default = "default_listen")]
+    pub listen: String,
+}
+
+fn default_listen() -> String {
+    "0.0.0.0:3000".to_string()
 }
 
 pub struct AppStateInner {
