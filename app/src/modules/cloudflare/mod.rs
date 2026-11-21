@@ -3,9 +3,11 @@ use figment::{providers::Env, Figment};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
+use self::dns::{Zone, ZONES_PER_PAGE};
+
 pub mod dns;
 pub mod domains;
-pub mod domains_endpoint;
+mod listing;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CloudflareConfig {
@@ -73,7 +75,10 @@ impl CloudflareService {
         if let Ok(config) = config {
             let service = Self::new(config)?;
             info!("Cloudflare config verified");
-            if let Err(error) = service.fetch_zone_page(1).await {
+            if let Err(error) = service
+                .check_listing::<Zone>("zones", Some(ZONES_PER_PAGE))
+                .await
+            {
                 warn!("Cloudflare token check failed: {error:?}");
                 return None;
             }

@@ -1,14 +1,19 @@
 use chrono::DateTime;
-use cloudflare::endpoints::account::{list_accounts::ListAccountsParams, ListAccounts};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::{models::domain::Domain, state::AppState, Error};
 
-use super::{
-    domains_endpoint::{ListDomains, ListDomainsParams},
-    CloudflareService,
-};
+use super::CloudflareService;
+
+/// The Cloudflare API caps account listings at 50 per page.
+const ACCOUNTS_PER_PAGE: u32 = 50;
+
+#[derive(Debug, Deserialize)]
+struct Account {
+    id: String,
+    name: String,
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CloudflareContact {
@@ -62,47 +67,35 @@ pub struct CloudflareDomain {
 }
 
 impl CloudflareService {
-    /// Accounts come from a single listing page, so Cloudflare rows are only upserted and Cloudflare stays out of `DomainService`, whose syncs delete what a listing leaves out.
+    /// Cloudflare rows are only upserted, so a domain that leaves the account keeps its stored row.
     pub async fn upsert_domains(&self, state: &AppState) -> Result<(), Error> {
-        let accounts = ListAccounts {
-            params: Some(ListAccountsParams::default()),
-        };
-        let accounts = self.client.request(&accounts).await?;
-        info!("Cloudflare accounts: {:?}", accounts);
+        let accounts = self
+            .list_all("accounts", Some(ACCOUNTS_PER_PAGE), |account: &Account| {
+                &account.id
+            })
+            .await?;
+        info!("Cloudflare accounts: {}", accounts.len());
 
         let mut result_domains: Vec<Domain> = Vec::new();
 
-        for account in accounts.result {
-            let account_id_clone = account.id.clone();
-            let account_name_clone = account.name.clone();
-
-            let domains = ListDomains {
-                params: ListDomainsParams {
-                    account: account.id,
-                },
-            };
-            let domains_result = self.client.request(&domains).await?;
-
+        for account in accounts {
+            let path = format!("accounts/{}/registrar/domains", account.id);
+            let domains = self
+                .list_all(&path, None, |domain: &CloudflareDomain| &domain.name)
+                .await?;
             info!(
-                "Cloudflare domains result: {:?}",
-                serde_json::to_string(&domains_result).unwrap()
+                "Cloudflare registrar domains in {}: {}",
+                account.id,
+                domains.len()
             );
-
-            let domains = domains_result.result.into_vec();
 
             for domain in domains {
                 let mut metadata = serde_json::to_value(&domain).unwrap();
 
                 // Add account details to the metadata object
                 if let Some(obj) = metadata.as_object_mut() {
-                    obj.insert(
-                        "account_id".to_string(),
-                        serde_json::json!(account_id_clone),
-                    );
-                    obj.insert(
-                        "account_name".to_string(),
-                        serde_json::json!(account_name_clone),
-                    );
+                    obj.insert("account_id".to_string(), serde_json::json!(account.id));
+                    obj.insert("account_name".to_string(), serde_json::json!(account.name));
                 }
 
                 let ext_expiry_at = DateTime::parse_from_rfc3339(&domain.expires_at)

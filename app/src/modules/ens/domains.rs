@@ -206,7 +206,14 @@ impl DomainService for EnsService {
                 }
                 Err(err) => {
                     failed += 1;
-                    warn!(ens.name = %name, error = %format_args!("{err:#}"), "ENS lookup failed, keeping stored row");
+                    match previous_row {
+                        Some(_) => {
+                            warn!(ens.name = %name, error = %format_args!("{err:#}"), "ENS lookup failed, keeping stored row")
+                        }
+                        None => {
+                            warn!(ens.name = %name, error = %format_args!("{err:#}"), "ENS lookup failed, name stays untracked until a lookup succeeds")
+                        }
+                    }
                     synced.push(Synced::Unchecked(name.to_string()));
                     continue;
                 }
