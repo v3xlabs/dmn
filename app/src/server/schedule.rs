@@ -31,7 +31,8 @@ pub async fn start_schedule(state: &AppState) {
             ens.run_schedule(state).await;
         }
     };
-    provider_loop.join(ens_loop).await;
+    let index_loop = crate::modules::index::Indexer::new().run(state);
+    provider_loop.join(ens_loop).join(index_loop).await;
 }
 
 async fn do_loop(state: &AppState) -> Result<(), Error> {
