@@ -245,11 +245,11 @@ impl EnsVersion {
         }
     }
 
-    pub fn badge(self) -> (&'static str, &'static str) {
+    pub fn badge(self) -> &'static str {
         match self {
-            Self::V1 => ("v1", "bg-amber-100 text-amber-800"),
-            Self::Upgraded => ("v1->v2", "bg-sky-100 text-sky-800"),
-            Self::V2 => ("v2", "bg-emerald-100 text-emerald-800"),
+            Self::V1 => "v1",
+            Self::Upgraded => "v1->v2",
+            Self::V2 => "v2",
         }
     }
 }

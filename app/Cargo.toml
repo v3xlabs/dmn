@@ -110,6 +110,7 @@ icalendar = "0.16.13"
 csv = "1.3.1"
 # tempfile = "3.19.1"
 ntfy = "0.7.0"
+strum = { version = "0.28.0", features = ["derive"] }
 
 [build-dependencies]
 build-info-build = "0.0.39"

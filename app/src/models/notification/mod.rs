@@ -26,14 +26,15 @@ impl Notification {
         Ok(notification)
     }
 
-    pub async fn find_all(state: &AppState) -> Result<Vec<Self>, Error> {
-        let notifications = sqlx::query_as!(
-            Notification,
-            "SELECT * FROM notifications"
+    pub async fn latest_per_domain(state: &AppState, limit: u32) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Notification>(
+            "SELECT id, domain, event, message, created_at FROM (
+                SELECT *, ROW_NUMBER() OVER (PARTITION BY domain ORDER BY created_at DESC, id DESC) AS position
+                FROM notifications
+            ) WHERE position <= ?",
         )
+        .bind(limit)
         .fetch_all(&state.database.pool)
-        .await?;
-
-        Ok(notifications)
+        .await
     }
 }
