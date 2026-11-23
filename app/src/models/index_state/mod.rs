@@ -1,5 +1,5 @@
 use chrono::{DateTime, SubsecRound, Utc};
-use sqlx::{prelude::FromRow, SqliteConnection};
+use sqlx::{prelude::FromRow, SqliteConnection, SqliteExecutor};
 use strum::Display;
 
 use std::collections::BTreeSet;
@@ -12,6 +12,7 @@ use crate::{modules::registry::name::DomainName, state::AppState};
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
 pub enum IndexKind {
     Registry,
+    Ens,
 }
 
 /// ENS names live on Ethereum, not in the DNS root, so registries and resolvers know nothing about them.
@@ -86,31 +87,80 @@ impl IndexState {
             .await
     }
 
-    /// Every due row, so rows behind a parked host never hide due rows on other hosts.
-    pub async fn due(state: &AppState, now: DateTime<Utc>) -> Result<Vec<Self>, sqlx::Error> {
-        sqlx::query_as::<_, Self>(
-            "SELECT * FROM index_state WHERE next_check_at <= ? ORDER BY next_check_at",
+    /// Adds `name` as due at `now`, unless it has a row already.
+    pub async fn add(
+        conn: &mut SqliteConnection,
+        name: &str,
+        kind: IndexKind,
+        now: DateTime<Utc>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "INSERT OR IGNORE INTO index_state (name, kind, next_check_at) VALUES (?, ?, ?)",
         )
+        .bind(name)
+        .bind(kind)
+        .bind(now.trunc_subsecs(0))
+        .execute(conn)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn all(
+        executor: impl SqliteExecutor<'_>,
+        kind: IndexKind,
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>("SELECT * FROM index_state WHERE kind = ?")
+            .bind(kind)
+            .fetch_all(executor)
+            .await
+    }
+
+    /// Every due row, so rows behind a parked host never hide due rows on other hosts.
+    pub async fn due(
+        state: &AppState,
+        kind: IndexKind,
+        now: DateTime<Utc>,
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
+            "SELECT * FROM index_state WHERE kind = ? AND next_check_at <= ? ORDER BY next_check_at",
+        )
+        .bind(kind)
         .bind(now.trunc_subsecs(0))
         .fetch_all(&state.database.pool)
         .await
     }
 
-    pub async fn all(state: &AppState, kind: IndexKind) -> Result<Vec<Self>, sqlx::Error> {
-        sqlx::query_as::<_, Self>("SELECT * FROM index_state WHERE kind = ?")
+    pub async fn next_due_after(
+        state: &AppState,
+        kind: IndexKind,
+        now: DateTime<Utc>,
+    ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
+        sqlx::query_scalar(
+            "SELECT MIN(next_check_at) FROM index_state WHERE kind = ? AND next_check_at > ?",
+        )
+        .bind(kind)
+        .bind(now.trunc_subsecs(0))
+        .fetch_one(&state.database.pool)
+        .await
+    }
+
+    pub async fn earliest_check_at(
+        state: &AppState,
+        kind: IndexKind,
+    ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
+        sqlx::query_scalar("SELECT MIN(next_check_at) FROM index_state WHERE kind = ?")
             .bind(kind)
-            .fetch_all(&state.database.pool)
+            .fetch_one(&state.database.pool)
             .await
     }
 
-    pub async fn next_due_after(
-        state: &AppState,
-        now: DateTime<Utc>,
-    ) -> Result<Option<DateTime<Utc>>, sqlx::Error> {
-        sqlx::query_scalar("SELECT MIN(next_check_at) FROM index_state WHERE next_check_at > ?")
-            .bind(now.trunc_subsecs(0))
-            .fetch_one(&state.database.pool)
-            .await
+    pub async fn delete(&self, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM index_state WHERE name = ? AND kind = ?")
+            .bind(&self.name)
+            .bind(self.kind)
+            .execute(conn)
+            .await?;
+        Ok(())
     }
 
     pub async fn checked(
@@ -134,7 +184,7 @@ impl IndexState {
 
     pub async fn failed(
         &self,
-        state: &AppState,
+        executor: impl SqliteExecutor<'_>,
         at: DateTime<Utc>,
         next_check_at: DateTime<Utc>,
         error: &str,
@@ -148,7 +198,7 @@ impl IndexState {
         .bind(error)
         .bind(&self.name)
         .bind(self.kind)
-        .execute(&state.database.pool)
+        .execute(executor)
         .await?;
         Ok(())
     }

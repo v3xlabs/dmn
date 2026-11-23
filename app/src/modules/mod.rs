@@ -9,10 +9,12 @@ pub mod ntfy;
 pub mod porkbun;
 pub mod registry;
 
+/// What a provider found for one name it checked.
+/// A stored name with no outcome stays exactly as it is.
 pub enum Synced {
     Listed(Domain),
-    /// The provider could not check this name, so its stored row stays exactly as it is.
-    Unchecked(String),
+    /// The provider checked this name and no longer has it, so its stored row is deleted.
+    Gone(String),
     /// The domain leaves tracking; this last known state is diffed against the stored row before the row is deleted.
     Departed(Domain),
 }

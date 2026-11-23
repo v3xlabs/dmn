@@ -105,7 +105,7 @@ impl Indexer {
 
         let now = Utc::now();
         let mut host_free_at: Option<DateTime<Utc>> = None;
-        for row in IndexState::due(state, now).await? {
+        for row in IndexState::due(state, IndexKind::Registry, now).await? {
             let name: DomainName = match row.name.parse() {
                 Ok(name) => name,
                 Err(reason) => {
@@ -169,7 +169,7 @@ impl Indexer {
 
         // Every due row waits on a parked host, or none is due: sleep until a host frees up or a row comes due.
         let mut wake_at = now + TimeDelta::seconds(RESYNC_SECS as i64);
-        if let Some(next_due) = IndexState::next_due_after(state, now).await? {
+        if let Some(next_due) = IndexState::next_due_after(state, IndexKind::Registry, now).await? {
             wake_at = wake_at.min(next_due);
         }
         if let Some(free_at) = host_free_at {
@@ -356,7 +356,8 @@ impl IndexState {
         next_check_at: DateTime<Utc>,
         error: &str,
     ) -> Result<(), Error> {
-        self.failed(state, at, next_check_at, error).await?;
+        self.failed(&state.database.pool, at, next_check_at, error)
+            .await?;
         Domain::set_manual_error(state, &self.name, error).await?;
         Ok(())
     }

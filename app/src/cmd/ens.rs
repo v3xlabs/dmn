@@ -4,10 +4,7 @@ use clap::Subcommand;
 
 use crate::{
     models::domain::Domain,
-    modules::{
-        domains::diff_provider,
-        ens::{EnsService, EnsVersion},
-    },
+    modules::ens::{domains::Discovery, EnsService, EnsVersion},
     state::{get_config_file, AppState, AppStateInner},
     Error,
 };
@@ -39,7 +36,15 @@ impl EnsCommands {
                 })?;
 
                 println!("Indexing ENS domains via {}", ens.rpc_url());
-                let _ = diff_provider(&state, "ens", &ens).await?;
+                let lookups = ens.refresh(&state, &mut Discovery::default(), true).await?;
+                // A single failed lookup retries on its own schedule, so only a full RPC outage fails the command.
+                if lookups.total > 0 && lookups.failed == lookups.total {
+                    return Err(Error::msg("every ENS lookup failed"));
+                }
+                println!(
+                    "Looked up {} ENS names, {} failed",
+                    lookups.total, lookups.failed
+                );
 
                 let stored = Domain::find_by_provider(&state, "ens").await?;
                 let (mut v1, mut upgraded, mut v2) = (0, 0, 0);
@@ -52,7 +57,7 @@ impl EnsCommands {
                     }
                 }
                 println!(
-                    "Indexed {} ENS domains ({v1} v1, {upgraded} upgraded, {v2} v2)",
+                    "Tracking {} ENS domains ({v1} v1, {upgraded} upgraded, {v2} v2)",
                     stored.len()
                 );
             }

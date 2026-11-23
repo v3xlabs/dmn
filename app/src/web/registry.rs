@@ -100,7 +100,7 @@ impl RegistryData {
     /// `history_limit` caps the registry snapshots read per name, like the notification history caps entries.
     pub async fn load(state: &AppState, history_limit: u32) -> Result<Self, sqlx::Error> {
         let mut panels: HashMap<String, RegistryPanel> =
-            IndexState::all(state, IndexKind::Registry)
+            IndexState::all(&state.database.pool, IndexKind::Registry)
                 .await?
                 .into_iter()
                 .map(|row| {

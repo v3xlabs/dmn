@@ -230,13 +230,12 @@ impl DomainService for PorkbunService {
                     warn!("Porkbun listing missed {}, found it by name", stored.name);
                     result_domains.push(Synced::Listed(Domain::from(domain)));
                 }
-                Ok(None) => {}
+                Ok(None) => result_domains.push(Synced::Gone(stored.name)),
                 Err(error) => {
                     warn!(
                         "Porkbun could not check {}, keeping stored row: {error:#}",
                         stored.name
                     );
-                    result_domains.push(Synced::Unchecked(stored.name));
                 }
             }
         }

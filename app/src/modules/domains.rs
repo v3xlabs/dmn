@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use serde_json::Value;
+use serde_json::{Map, Value};
 use tracing::info;
 
 use crate::{
@@ -16,8 +16,6 @@ const IGNORED_DIFF_KEYS: &[&str] = &["created_at", "updated_at"];
 
 pub struct SyncReport {
     pub notifications: Vec<Notification>,
-    /// Names the provider could not check, so a schedule can retry them sooner than a full sync.
-    pub unchecked: usize,
 }
 
 //
@@ -26,28 +24,50 @@ pub async fn diff_provider(
     provider: &str,
     provider_domains: &impl DomainService,
 ) -> Result<SyncReport, anyhow::Error> {
+    let outcomes = provider_domains.ingest_domains(state).await?;
+    diff_outcomes(state, provider, outcomes).await
+}
+
+/// Writes the rows of one sync and their change records in one transaction.
+pub async fn diff_outcomes(
+    state: &AppState,
+    provider: &str,
+    outcomes: Vec<Synced>,
+) -> Result<SyncReport, anyhow::Error> {
     let pre = Domain::find_by_provider(state, provider).await?;
+    let stored = |name: &str| pre.iter().find(|domain| domain.name == name);
 
     let mut listed = Vec::new();
     let mut departed = Vec::new();
-    let mut unchecked = Vec::new();
-    for outcome in provider_domains.ingest_domains(state).await? {
+    let mut gone = Vec::new();
+    for outcome in outcomes {
         match outcome {
             Synced::Listed(domain) => listed.push(domain),
             Synced::Departed(domain) => departed.push(domain),
-            Synced::Unchecked(name) => unchecked.push(name),
+            Synced::Gone(name) => gone.push(name),
         }
     }
-    let post: Vec<Domain> = listed
-        .iter()
-        .chain(&departed)
-        .chain(pre.iter().filter(|domain| unchecked.contains(&domain.name)))
-        .cloned()
-        .collect();
+
+    let mut additions = Vec::new();
+    let mut changes = Vec::new();
+    for domain in &listed {
+        match stored(&domain.name) {
+            Some(before) => changes.push((domain, before.changed_fields(domain))),
+            None => additions.push(domain),
+        }
+    }
+    // A name with no stored row has nothing to delete and gets no delete record.
+    let mut deletions = Vec::new();
+    for domain in &departed {
+        if let Some(before) = stored(&domain.name) {
+            changes.push((domain, before.changed_fields(domain)));
+            deletions.push(domain.name.as_str());
+        }
+    }
+    deletions.extend(gone.iter().map(String::as_str).filter(|name| stored(name).is_some()));
+    changes.retain(|(_, change)| !change.is_empty());
 
     let mut notifications = Vec::new();
-
-    let (additions, deletions, changes) = diff_changes(&pre, &post).await?;
 
     let mut tx = state.database.pool.begin().await?;
 
@@ -58,7 +78,7 @@ pub async fn diff_provider(
     for addition in additions {
         info!("New domain detected: {}", addition.name);
         // TODO: notify user the domain was added
-        notifications.push(Notification::new(&mut tx, addition.name, "add", "New domain detected".to_string()).await?);
+        notifications.push(Notification::new(&mut tx, addition.name.clone(), "add", "New domain detected".to_string()).await?);
     }
 
     for change in changes {
@@ -68,13 +88,9 @@ pub async fn diff_provider(
         let human = diff_to_human(change.0.name.clone(), change.1);
         info!("{}", human);
 
-        notifications.push(Notification::new(&mut tx, change.0.name, "change", human).await?);
+        notifications.push(Notification::new(&mut tx, change.0.name.clone(), "change", human).await?);
     }
 
-    let deletions: Vec<String> = deletions
-        .into_iter()
-        .chain(departed.into_iter().map(|domain| domain.name))
-        .collect();
     let permit = state.config.deletes.as_ref();
     if permit.is_none() && !deletions.is_empty() {
         info!(
@@ -101,9 +117,9 @@ pub async fn diff_provider(
             let notification = if handover {
                 let message =
                     format!("{provider} no longer lists this name, [manual] keeps tracking it");
-                Notification::new(&mut tx, deletion, "handover", message).await?
+                Notification::new(&mut tx, deletion.to_string(), "handover", message).await?
             } else {
-                Notification::new(&mut tx, deletion, "delete", "Domain deleted".to_string()).await?
+                Notification::new(&mut tx, deletion.to_string(), "delete", "Domain deleted".to_string()).await?
             };
             notifications.push(notification);
         }
@@ -111,81 +127,30 @@ pub async fn diff_provider(
 
     tx.commit().await?;
 
-    Ok(SyncReport {
-        notifications,
-        unchecked: unchecked.len(),
-    })
+    Ok(SyncReport { notifications })
 }
 
-pub async fn diff_changes(
-    pre: &[Domain],
-    post: &[Domain],
-) -> Result<
-    (
-        Vec<Domain>,
-        Vec<String>,
-        Vec<(
-            Domain,
-            HashMap<String, (serde_json::Value, serde_json::Value)>,
-        )>,
-    ),
-    anyhow::Error,
-> {
-    let mut changes: Vec<(
-        Domain,
-        HashMap<String, (serde_json::Value, serde_json::Value)>,
-    )> = Vec::new();
-    let mut additions: Vec<Domain> = Vec::new();
-    let mut deletions: Vec<String> = Vec::new();
-
-    for domain in post {
-        let pre_domain = pre.iter().find(|d| d.name == domain.name);
-
-        match pre_domain {
-            // existing domain
-            Some(pre_domain) => {
-                // check if there is a difference
-                let pre_raw = serde_json::to_value(pre_domain).unwrap();
-                let post_raw = serde_json::to_value(domain).unwrap();
-
-                if pre_raw != post_raw {
-                    // changes detected
-                    // info!("Domain {} has changed", domain.name);
-
-                    let mut change = HashMap::new();
-
-                    // for every key in the post_raw, check if it is a difference
-                    for (key, value) in post_raw.as_object().unwrap() {
-                        if !IGNORED_DIFF_KEYS.contains(&key.as_str())
-                            && pre_raw.get(key).unwrap() != value
-                        {
-                            change.insert(
-                                key.to_string(),
-                                (pre_raw.get(key).unwrap().clone(), value.clone()),
-                            );
-                        }
-                    }
-
-                    if !change.is_empty() {
-                        changes.push((domain.clone(), change));
-                    }
-                }
-            }
-            // new domain
-            None => {
-                additions.push(domain.clone());
-            }
-        }
+impl Domain {
+    /// The fields that differ in `after`, as `(before, after)`, leaving out the bookkeeping timestamps.
+    fn changed_fields(&self, after: &Self) -> HashMap<String, (Value, Value)> {
+        let mut before = self.fields();
+        after
+            .fields()
+            .into_iter()
+            .filter(|(key, _)| !IGNORED_DIFF_KEYS.contains(&key.as_str()))
+            .filter_map(|(key, after)| {
+                let before = before.remove(&key).unwrap_or(Value::Null);
+                (before != after).then_some((key, (before, after)))
+            })
+            .collect()
     }
 
-    // find deletions
-    for domain in pre {
-        if !post.iter().any(|d| d.name == domain.name) {
-            deletions.push(domain.name.clone());
+    fn fields(&self) -> Map<String, Value> {
+        match serde_json::to_value(self).expect("a Domain has only string keys") {
+            Value::Object(fields) => fields,
+            other => unreachable!("domain {} serialized to {other}", self.name),
         }
     }
-
-    Ok((additions, deletions, changes))
 }
 
 fn diff_to_human(
