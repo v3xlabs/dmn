@@ -760,6 +760,9 @@ th[aria-sort="descending"] .sort-desc {
 .expiry-tip {
   bottom: calc(100% + 7px);
   left: 0;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 32px));
+  white-space: normal;
   font-family: var(--font-mono);
   font-size: 12px;
   font-variant-numeric: tabular-nums slashed-zero;
@@ -799,6 +802,17 @@ th[aria-sort="descending"] .sort-desc {
 .status-line[data-tone="never"] {
   color: var(--fg);
   font-weight: 400;
+}
+
+.status-line[data-tone="unpublished"],
+.status-line[data-tone="pending"] {
+  color: var(--fg-muted);
+  font-weight: 400;
+}
+
+.status-line[data-tone="unpublished"] .status-dot,
+.status-line[data-tone="pending"] .status-dot {
+  background: var(--fg-faint);
 }
 
 .status-line[data-tone="unknown"] .status-dot,

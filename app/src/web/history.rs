@@ -9,6 +9,8 @@ pub enum ChangeEvent {
     Add,
     Delete,
     Change,
+    /// A registrar dropped a name that `[manual]` still tracks.
+    Handover,
 }
 
 impl ChangeEvent {
@@ -17,6 +19,7 @@ impl ChangeEvent {
             Self::Add => "Domain added",
             Self::Delete => "Domain removed",
             Self::Change => "Record changed",
+            Self::Handover => "Moved to manual list",
         }
     }
 
@@ -25,6 +28,7 @@ impl ChangeEvent {
             Self::Add => "Added",
             Self::Delete => "Removed",
             Self::Change => "Changed",
+            Self::Handover => "Moved to manual",
         }
     }
 }
@@ -73,7 +77,7 @@ impl From<&Notification> for Change {
     fn from(notification: &Notification) -> Self {
         let event = notification.event.parse().unwrap_or_else(|_| {
             panic!(
-                "notification {} has event {:?}; diff_provider only writes add, delete or change",
+                "notification {} has event {:?}; only add, delete, change or handover are written",
                 notification.id, notification.event
             )
         });

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use clap::{arg, Subcommand};
-use figment::Figment;
 use tracing::{info, warn};
 
 use crate::{modules::{domains::diff_provider, porkbun::PorkbunService, DomainService}, state::{AppState, AppStateInner}, Error};
@@ -26,10 +25,10 @@ pub enum PorkbunCommands {
 
 impl PorkbunCommands {
     pub async fn handle(&self) -> Result<(), Error> {
-        let porkbun = PorkbunService::try_init(&Figment::new())
+        let state: AppState = Arc::new(AppStateInner::init(false).await?);
+        let porkbun = PorkbunService::try_init(&state.config.figment)
             .await
             .ok_or(Error::msg("Failed to initialize Porkbun service"))?;
-        let state: AppState = Arc::new(AppStateInner::init(false).await);
 
         match self {
             // PorkbunCommands::Ls => {

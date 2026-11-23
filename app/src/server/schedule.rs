@@ -13,6 +13,12 @@ use crate::{
 };
 
 pub async fn start_schedule(state: &AppState) {
+    if let Some(manual) = &state.manual {
+        if let Err(err) = manual.sync(state).await {
+            error!(error = %err, "manual list sync failed");
+        }
+    }
+
     let provider_loop = async {
         if let Err(e) = do_loop(state).await {
             error!("Error in schedule: {}", e);

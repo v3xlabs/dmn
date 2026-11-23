@@ -30,3 +30,8 @@ enabled = true
 # Optional (requires `--features ens-discovery`):
 # addresses = ["0x0000000000000000000000000000000000000000"]
 # discovery_url = "https://api.bigname.sh"
+
+# Manual (registry data over RDAP or WHOIS, no API key)
+# A name that Porkbun or Cloudflare also tracks shows only the registrar row.
+# [manual]
+# domains = ["example.com", "example.io"]

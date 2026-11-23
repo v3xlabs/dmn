@@ -11,6 +11,7 @@ use tracing::{debug, error, info, warn};
 
 use crate::{
     models::{
+        domain::{Domain, ManualStatus},
         index_host::IndexHost,
         index_state::{IndexKind, IndexState},
         record_change::RecordChange,
@@ -108,7 +109,7 @@ impl Indexer {
             let name: DomainName = match row.name.parse() {
                 Ok(name) => name,
                 Err(reason) => {
-                    row.failed(
+                    row.record_failure(
                         state,
                         now,
                         now + TimeDelta::days(cadence::NO_ROUTE_RECHECK_DAYS),
@@ -132,7 +133,7 @@ impl Indexer {
                 Ok(RouteStep::Known(Some(route))) => route,
                 Ok(RouteStep::Known(None)) => {
                     let reason = format!("no RDAP or WHOIS server known for .{}", name.tld());
-                    row.failed(
+                    row.record_failure(
                         state,
                         now,
                         now + TimeDelta::days(cadence::NO_ROUTE_RECHECK_DAYS),
@@ -152,7 +153,7 @@ impl Indexer {
                 Err(err) if err.is::<BootstrapUnavailable>() => return Err(err),
                 Err(err) => {
                     warn!(domain.name = %name, error = %err, "registry route lookup failed");
-                    row.failed(state, now, row.retry_at(now), &format!("{err:#}"))
+                    row.record_failure(state, now, row.retry_at(now), &format!("{err:#}"))
                         .await?;
                     continue;
                 }
@@ -262,7 +263,7 @@ impl Indexer {
                         },
                     );
                     warn!(domain.name = %name, error = %err, "registry lookup failed");
-                    row.failed(state, now, row.retry_at(now), &format!("{err:#}"))
+                    row.record_failure(state, now, row.retry_at(now), &format!("{err:#}"))
                         .await?;
                     Ok(())
                 }
@@ -331,7 +332,32 @@ impl IndexState {
         }
         self.checked(&mut tx, now, record.next_check_at(&self.name, now))
             .await?;
+        let status = ManualStatus {
+            registered: Some(record.registered),
+            lookup_error: None,
+        };
+        Domain::set_manual_record(
+            &mut tx,
+            &self.name,
+            record.expiry_at,
+            record.registered_at,
+            &status,
+        )
+        .await?;
         tx.commit().await?;
+        Ok(())
+    }
+
+    /// Backs the row off until `next_check_at` and shows the error on a manual row of the same name.
+    async fn record_failure(
+        &self,
+        state: &AppState,
+        at: DateTime<Utc>,
+        next_check_at: DateTime<Utc>,
+        error: &str,
+    ) -> Result<(), Error> {
+        self.failed(state, at, next_check_at, error).await?;
+        Domain::set_manual_error(state, &self.name, error).await?;
         Ok(())
     }
 }

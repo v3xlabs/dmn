@@ -20,6 +20,19 @@ pub enum ExpiryTone {
     Soon,
     Active,
     Never,
+    Unpublished,
+    Pending,
+}
+
+/// What a domain row without `ext_expiry_at` means, which depends on where the row comes from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MissingExpiry {
+    Never,
+    Unpublished,
+    NotChecked,
+    Unregistered,
+    LookupFailed(String),
+    Unreported,
 }
 
 #[derive(Debug, Clone)]
@@ -33,24 +46,59 @@ pub struct Expiry {
 }
 
 impl Expiry {
-    pub fn new(expiry: Option<DateTime<Utc>>, allows_no_expiry: bool, now: DateTime<Utc>) -> Self {
+    pub fn new(expiry: Option<DateTime<Utc>>, missing: MissingExpiry, now: DateTime<Utc>) -> Self {
         let Some(expiry) = expiry else {
-            if allows_no_expiry {
-                return Self {
-                    tone: ExpiryTone::Never,
-                    label: "No expiry".to_string(),
-                    hover: "This name does not expire".to_string(),
-                    status: "No expiry".to_string(),
-                    needs_attention: false,
-                    within_window: false,
-                };
-            }
+            let (tone, label, hover, status, needs_attention) = match missing {
+                MissingExpiry::Never => (
+                    ExpiryTone::Never,
+                    "No expiry",
+                    "This name does not expire".to_string(),
+                    "No expiry".to_string(),
+                    false,
+                ),
+                MissingExpiry::Unpublished => (
+                    ExpiryTone::Unpublished,
+                    "Not published",
+                    "No expiry published".to_string(),
+                    "Registered".to_string(),
+                    false,
+                ),
+                MissingExpiry::NotChecked => (
+                    ExpiryTone::Pending,
+                    "Not checked yet",
+                    "Not looked up yet".to_string(),
+                    "Not checked yet".to_string(),
+                    false,
+                ),
+                MissingExpiry::Unregistered => (
+                    ExpiryTone::Unknown,
+                    "Not registered",
+                    "No registry record".to_string(),
+                    "Not registered".to_string(),
+                    true,
+                ),
+                MissingExpiry::LookupFailed(error) => (
+                    ExpiryTone::Unknown,
+                    "Lookup failed",
+                    error.clone(),
+                    // The drawer shows `status` as plain text, so the error is readable without hover.
+                    format!("Lookup failed: {error}"),
+                    true,
+                ),
+                MissingExpiry::Unreported => (
+                    ExpiryTone::Unknown,
+                    "Expiry unknown",
+                    "The provider reported no expiry date".to_string(),
+                    "Expiry unknown".to_string(),
+                    true,
+                ),
+            };
             return Self {
-                tone: ExpiryTone::Unknown,
-                label: "Expiry unknown".to_string(),
-                hover: "The provider reported no expiry date".to_string(),
-                status: "Expiry unknown".to_string(),
-                needs_attention: true,
+                tone,
+                label: label.to_string(),
+                hover,
+                status,
+                needs_attention,
                 within_window: false,
             };
         };

@@ -10,6 +10,7 @@ pub enum ProviderKind {
     Cloudflare,
     #[strum(serialize = "ENS")]
     Ens,
+    Manual,
     #[strum(default)]
     Other(String),
 }
@@ -20,12 +21,7 @@ impl ProviderKind {
             Self::Porkbun => icons::PORKBUN,
             Self::Cloudflare => icons::CLOUDFLARE,
             Self::Ens => icons::ENS,
-            Self::Other(_) => icons::GLOBE,
+            Self::Manual | Self::Other(_) => icons::GLOBE,
         }
-    }
-
-    /// ENS subnames under ENSv2 have no expiry by design; every other provider owes an expiry date.
-    pub fn allows_no_expiry(&self) -> bool {
-        matches!(self, Self::Ens)
     }
 }

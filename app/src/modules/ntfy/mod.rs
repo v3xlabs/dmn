@@ -67,6 +67,7 @@ impl NtfyService {
                 "add" => format!("New Domain{}", plural),
                 "delete" => format!("Domain{} Deleted", plural),
                 "change" => format!("Domain{} Changed", plural),
+                "handover" => format!("Domain{} Moved to Manual List", plural),
                 _ => "Unknown".to_string(),
             };
 

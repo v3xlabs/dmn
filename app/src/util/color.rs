@@ -13,6 +13,7 @@ pub fn colorize_provider(provider: &str) -> String {
             .truecolor(239, 120, 120)
             .to_string(),
         "ens" => "ENS".to_string().green().truecolor(0, 128, 188).to_string(),
+        "manual" => "Manual".to_string().truecolor(150, 150, 150).to_string(),
         _ => provider.to_string(),
     }
 }

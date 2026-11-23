@@ -4,8 +4,11 @@ use serde_json::Value;
 use tracing::info;
 
 use crate::{
-    models::{domain::Domain, notification::Notification},
-    modules::{DomainService, Synced},
+    models::{
+        domain::{Domain, MANUAL_PROVIDER},
+        notification::Notification,
+    },
+    modules::{registry::name::DomainName, DomainService, Synced},
     state::AppState,
 };
 
@@ -68,13 +71,42 @@ pub async fn diff_provider(
         notifications.push(Notification::new(&mut tx, change.0.name, "change", human).await?);
     }
 
-    for deletion in deletions.into_iter().chain(departed.into_iter().map(|domain| domain.name)) {
-        info!("Domain deleted: {}", deletion);
+    let deletions: Vec<String> = deletions
+        .into_iter()
+        .chain(departed.into_iter().map(|domain| domain.name))
+        .collect();
+    let permit = state.config.deletes.as_ref();
+    if permit.is_none() && !deletions.is_empty() {
+        info!(
+            domain.provider = provider,
+            kept = deletions.len(),
+            "keeping rows the provider no longer lists, because deletes are off"
+        );
+    } else if let Some(permit) = permit.filter(|_| !deletions.is_empty()) {
+        for deletion in &deletions {
+            info!("Domain deleted: {}", deletion);
+            Domain::delete_by_name(&mut tx, permit, provider, deletion).await?;
+        }
 
-        Domain::delete_by_name(&mut tx, provider, &deletion).await?;
-
-        // TODO: notify user the domain was deleted
-        notifications.push(Notification::new(&mut tx, deletion, "delete", "Domain deleted".to_string()).await?);
+        // A handover is when the manual row is the only row left, the same rule that shows the manual row.
+        let remaining = Domain::providers_by_name(&mut tx).await?;
+        for deletion in deletions {
+            let handover = deletion
+                .parse::<DomainName>()
+                .ok()
+                .and_then(|name| remaining.get(&name))
+                .is_some_and(|providers| {
+                    providers.iter().all(|provider| provider == MANUAL_PROVIDER)
+                });
+            let notification = if handover {
+                let message =
+                    format!("{provider} no longer lists this name, [manual] keeps tracking it");
+                Notification::new(&mut tx, deletion, "handover", message).await?
+            } else {
+                Notification::new(&mut tx, deletion, "delete", "Domain deleted".to_string()).await?
+            };
+            notifications.push(notification);
+        }
     }
 
     tx.commit().await?;

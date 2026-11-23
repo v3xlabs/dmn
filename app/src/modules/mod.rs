@@ -4,6 +4,7 @@ pub mod cloudflare;
 pub mod domains;
 pub mod ens;
 pub mod index;
+pub mod manual;
 pub mod ntfy;
 pub mod porkbun;
 pub mod registry;

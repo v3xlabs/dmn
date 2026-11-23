@@ -28,7 +28,7 @@ impl DomainRow {
             .parse()
             .expect("ProviderKind has a default variant, so parsing cannot fail");
         let details = Details::new(&provider, domain.metadata.as_ref(), &domain.name);
-        let expiry = Expiry::new(domain.ext_expiry_at, provider.allows_no_expiry(), now);
+        let expiry = Expiry::new(domain.ext_expiry_at, details.missing_expiry(), now);
         changes.sort_by_key(|change| Reverse(change.at));
         Self {
             domain,

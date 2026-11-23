@@ -20,7 +20,9 @@ impl DomainRow {
                     h2 class="drawer-domain" id="drawer-title" { (domain_name(&self.domain.name)) }
                     div class="drawer-meta" {
                         (self.provider_mark())
-                        (self.expiry_line())
+                        @if self.expiry.tone != ExpiryTone::Unpublished {
+                            (self.expiry_line())
+                        }
                         @if let Some(url) = self.details.manage_url(&self.domain.name) {
                             a class="drawer-link" href=(url) target="_blank" rel="noreferrer" {
                                 "Manage" (icons::EXTERNAL)
@@ -45,6 +47,7 @@ impl DomainRow {
         let expires = match domain.ext_expiry_at {
             Some(at) => format_utc(at),
             None if self.expiry.tone == ExpiryTone::Never => "Never".to_string(),
+            None if self.expiry.tone == ExpiryTone::Unpublished => "Not published".to_string(),
             None => "Unknown".to_string(),
         };
         let switches = [

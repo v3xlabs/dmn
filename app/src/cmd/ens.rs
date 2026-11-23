@@ -28,16 +28,15 @@ pub enum EnsCommands {
 
 impl EnsCommands {
     pub async fn handle(&self) -> Result<(), Error> {
-        let config = get_config_file(false).unwrap_or_default();
-
         match self {
             Self::Index => {
-                let ens = EnsService::try_init(&config).await.ok_or_else(|| {
+                // The service and the delete rule must come from one read of the config file.
+                let state: AppState = Arc::new(AppStateInner::init(false).await?);
+                let ens = EnsService::try_init(&state.config.figment).await.ok_or_else(|| {
                     Error::msg(
                         "Failed to initialize ENS service (configure ENS_NAMES or [ens] in config.toml)",
                     )
                 })?;
-                let state: AppState = Arc::new(AppStateInner::init(false).await);
 
                 println!("Indexing ENS domains via {}", ens.rpc_url());
                 let _ = diff_provider(&state, "ens", &ens).await?;
@@ -58,7 +57,7 @@ impl EnsCommands {
                 );
             }
             Self::Lookup { name, json } => {
-                let ens = EnsService::for_lookup(&config)?;
+                let ens = EnsService::for_lookup(&get_config_file(false)?.figment)?;
                 match ens.lookup_name(name).await? {
                     Some(domain) if *json => println!("{}", serde_json::to_string_pretty(&domain)?),
                     Some(domain) => print!("{domain}"),

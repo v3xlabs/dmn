@@ -2,7 +2,9 @@ use chrono::{DateTime, SubsecRound, Utc};
 use sqlx::{prelude::FromRow, SqliteConnection};
 use strum::Display;
 
-use crate::state::AppState;
+use std::collections::BTreeSet;
+
+use crate::{modules::registry::name::DomainName, state::AppState};
 
 /// What an index row tracks for a name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, sqlx::Type)]
@@ -32,24 +34,56 @@ impl IndexState {
         kind: IndexKind,
         now: DateTime<Utc>,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "INSERT OR IGNORE INTO index_state (name, kind, next_check_at)
-             SELECT DISTINCT name, ?, ? FROM domains WHERE provider != ?",
-        )
-        .bind(kind)
-        .bind(now.trunc_subsecs(0))
-        .bind(NOT_INDEXED_PROVIDER)
-        .execute(&state.database.pool)
-        .await?;
-        sqlx::query(
-            "DELETE FROM index_state WHERE kind = ?
-             AND name NOT IN (SELECT name FROM domains WHERE provider != ?)",
-        )
-        .bind(kind)
-        .bind(NOT_INDEXED_PROVIDER)
-        .execute(&state.database.pool)
-        .await?;
-        Ok(())
+        let mut tx = state.database.pool.begin().await?;
+        let tracked: Vec<String> =
+            sqlx::query_scalar("SELECT DISTINCT name FROM domains WHERE provider != ?")
+                .bind(NOT_INDEXED_PROVIDER)
+                .fetch_all(&mut *tx)
+                .await?;
+        let tracked: BTreeSet<DomainName> = tracked
+            .iter()
+            .filter_map(|name| name.parse().ok())
+            .collect();
+        for name in &tracked {
+            sqlx::query(
+                "INSERT OR IGNORE INTO index_state (name, kind, next_check_at) VALUES (?, ?, ?)",
+            )
+            .bind(name.as_str())
+            .bind(kind)
+            .bind(now.trunc_subsecs(0))
+            .execute(&mut *tx)
+            .await?;
+        }
+        let indexed: Vec<String> =
+            sqlx::query_scalar("SELECT name FROM index_state WHERE kind = ?")
+                .bind(kind)
+                .fetch_all(&mut *tx)
+                .await?;
+        for name in indexed {
+            // A key in another spelling than its `DomainName` is not canonical and goes too.
+            let canonical = name.parse::<DomainName>().ok();
+            let keep = canonical.is_some_and(|key| key.as_str() == name && tracked.contains(&key));
+            if !keep {
+                sqlx::query("DELETE FROM index_state WHERE name = ? AND kind = ?")
+                    .bind(&name)
+                    .bind(kind)
+                    .execute(&mut *tx)
+                    .await?;
+            }
+        }
+        tx.commit().await
+    }
+
+    pub async fn find(
+        state: &AppState,
+        name: &str,
+        kind: IndexKind,
+    ) -> Result<Option<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>("SELECT * FROM index_state WHERE name = ? AND kind = ?")
+            .bind(name)
+            .bind(kind)
+            .fetch_optional(&state.database.pool)
+            .await
     }
 
     /// Every due row, so rows behind a parked host never hide due rows on other hosts.
@@ -110,5 +144,65 @@ impl IndexState {
         .execute(&state.database.pool)
         .await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{path::PathBuf, sync::Arc};
+
+    use chrono::TimeZone;
+    use figment::Figment;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    use super::*;
+    use crate::{
+        cache::AppCache,
+        database::Database,
+        state::{AppStateInner, LoadedConfig},
+    };
+
+    #[async_std::test]
+    async fn two_provider_spellings_share_one_index_row() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        sqlx::raw_sql(
+            "INSERT INTO domains (name, provider) VALUES ('EXAMPLE.TEST', 'porkbun'), ('example.test', 'cloudflare');
+             INSERT INTO index_state (name, kind, next_check_at) VALUES ('EXAMPLE.TEST', 'registry', '2030-01-01T00:00:00Z');",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let state = Arc::new(AppStateInner {
+            database: Database { pool },
+            api: None,
+            cache: AppCache::new(),
+            porkbun: None,
+            cloudflare: None,
+            ens: None,
+            manual: None,
+            ntfy: None,
+            config: LoadedConfig {
+                figment: Figment::new(),
+                path: PathBuf::new(),
+                deletes: None,
+            },
+        });
+        let now = Utc.with_ymd_and_hms(2026, 11, 22, 0, 0, 0).unwrap();
+
+        IndexState::sync(&state, IndexKind::Registry, now)
+            .await
+            .unwrap();
+
+        let rows: Vec<(String, DateTime<Utc>)> =
+            sqlx::query_as("SELECT name, next_check_at FROM index_state")
+                .fetch_all(&state.database.pool)
+                .await
+                .unwrap();
+        assert_eq!(rows, [("example.test".to_string(), now)]);
     }
 }

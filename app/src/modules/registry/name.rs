@@ -8,7 +8,7 @@ const MAX_NAME_LEN: usize = 253;
 /// Longest single label that RFC 1035 allows.
 const MAX_LABEL_LEN: usize = 63;
 
-/// A lower-case ASCII domain name with at least two labels, as registries expect it.
+/// A lower-case ASCII domain name with at least two labels, as registries expect it; IDN labels are A-labels.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 pub struct DomainName(String);
 
@@ -30,7 +30,12 @@ impl FromStr for DomainName {
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
         let raw = raw.trim();
-        let name = raw.strip_suffix('.').unwrap_or(raw).to_ascii_lowercase();
+        let raw = raw.strip_suffix('.').unwrap_or(raw);
+        let name = if raw.is_ascii() {
+            raw.to_ascii_lowercase()
+        } else {
+            to_a_labels(raw).ok_or("name is not a valid internationalized domain name")?
+        };
         if name.len() > MAX_NAME_LEN {
             return Err("name is longer than 253 characters");
         }
@@ -47,10 +52,21 @@ impl FromStr for DomainName {
                     .all(|b| b.is_ascii_alphanumeric() || b == b'-')
         });
         if !valid {
-            return Err("labels must be ASCII letters, digits or hyphens, use punycode for IDNs");
+            return Err("labels must be letters, digits or hyphens");
         }
         Ok(Self(name))
     }
+}
+
+/// Maps Unicode labels to A-labels (`bücher.de` is `xn--bcher-kva.de`), with the IDNA mapping that the `url` crate applies to hosts.
+fn to_a_labels(raw: &str) -> Option<String> {
+    // The URL parser ends the host at a separator, so only text that can be a whole host reaches it.
+    let host_char = |c: char| !c.is_ascii() || c.is_ascii_alphanumeric() || c == '-' || c == '.';
+    if !raw.chars().all(host_char) {
+        return None;
+    }
+    let url = reqwest::Url::parse(&format!("http://{raw}/")).ok()?;
+    url.domain().map(str::to_string)
 }
 
 impl fmt::Display for DomainName {
@@ -63,12 +79,31 @@ impl fmt::Display for DomainName {
 mod tests {
     use super::DomainName;
 
+    fn parse(raw: &str) -> Option<String> {
+        raw.parse::<DomainName>().ok().map(|name| name.to_string())
+    }
+
     #[test]
     fn only_one_root_dot_is_stripped() {
-        let parse = |raw: &str| raw.parse::<DomainName>().map(|name| name.to_string());
-        assert_eq!(parse(" Example.dev. "), Ok("example.dev".to_string()));
-        assert!(parse(" example.dev.. ").is_err());
-        assert!(parse(".example.dev").is_err());
-        assert!(parse("example..dev").is_err());
+        assert_eq!(parse(" Example.dev. ").as_deref(), Some("example.dev"));
+        assert_eq!(parse(" example.dev.. "), None);
+        assert_eq!(parse(" bücher.de.. "), None);
+        assert_eq!(parse(".example.dev"), None);
+        assert_eq!(parse("example..dev"), None);
+    }
+
+    #[test]
+    fn spellings_of_one_name_parse_to_one_name() {
+        assert_eq!(parse("Example.COM.").as_deref(), Some("example.com"));
+        assert_eq!(parse("bücher.de").as_deref(), Some("xn--bcher-kva.de"));
+        assert_eq!(
+            parse("XN--BCHER-KVA.de").as_deref(),
+            Some("xn--bcher-kva.de")
+        );
+        assert_eq!(parse("example.com/path"), None);
+        assert_eq!(parse("example.com\\example.org"), None);
+        assert_eq!(parse("bücher.de\\example.org"), None);
+        assert_eq!(parse("bücher.de\u{FF0F}example.org"), None);
+        assert_eq!(parse(""), None);
     }
 }

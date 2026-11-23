@@ -3,7 +3,6 @@ use clap::{Parser, Subcommand};
 use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Row, Table};
 use csv::Writer;
 use ens::EnsCommands;
-use figment::Figment;
 use porkbun::PorkbunCommands;
 use crate::models::domain::Domain;
 use crate::modules::{
@@ -85,7 +84,7 @@ pub async fn handle_args() -> Result<(), Error> {
         Commands::Server => {
             dotenvy::dotenv().ok();
 
-            let state: AppState = Arc::new(AppStateInner::init(true).await);
+            let state: AppState = Arc::new(AppStateInner::init(true).await?);
             let http = server::start_http(state.clone());
             let cache_size_notifier = state.cache.collect(&state);
             cache_size_notifier.race(http).await;
@@ -94,7 +93,7 @@ pub async fn handle_args() -> Result<(), Error> {
             exact_dates,
             output,
         } => {
-            let state: AppState = Arc::new(AppStateInner::init(false).await);
+            let state: AppState = Arc::new(AppStateInner::init(false).await?);
             let domains = Domain::get_all(&state).await?;
 
             match output.as_str() {
@@ -242,7 +241,7 @@ pub async fn handle_args() -> Result<(), Error> {
             }
         }
         Commands::Fzf => {
-            let state: AppState = Arc::new(AppStateInner::init(false).await);
+            let state: AppState = Arc::new(AppStateInner::init(false).await?);
             let domains = Domain::get_all(&state).await?;
             let domain_names: Vec<String> = domains.iter().map(|d| d.name.clone()).collect();
             let input_data = domain_names.join("\n");
@@ -283,10 +282,10 @@ pub async fn handle_args() -> Result<(), Error> {
             subcommand.handle().await?;
         }
         Commands::Cloudflare { subcommand } => {
-            let cloudflare = CloudflareService::try_init(&Figment::new())
+            let state: AppState = Arc::new(AppStateInner::init(false).await?);
+            let cloudflare = CloudflareService::try_init(&state.config.figment)
                 .await
                 .ok_or(Error::msg("Failed to initialize Cloudflare service"))?;
-            let state: AppState = Arc::new(AppStateInner::init(false).await);
 
             match subcommand {
                 CloudflareCommands::Index => {

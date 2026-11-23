@@ -5,6 +5,7 @@ use maud::{html, Markup, PreEscaped, DOCTYPE};
 use tracing::warn;
 
 use crate::models::{dns_domain::DnsDomain, domain::Domain, notification::Notification};
+use crate::modules::registry::name::DomainName;
 
 use super::expiry::{relative_past, ExpiryTone};
 use super::history::Change;
@@ -32,10 +33,15 @@ impl PageData {
         zones: Vec<DnsDomain>,
         now: DateTime<Utc>,
     ) -> Self {
+        // A registrar row and a manual row of one name share one history, so a registrar handover shows on the manual row.
+        let history_key = |name: &str| {
+            name.parse::<DomainName>()
+                .map_or_else(|_| name.to_string(), |name| name.to_string())
+        };
         let mut changes: HashMap<String, Vec<Change>> = HashMap::new();
         for notification in &notifications {
             changes
-                .entry(notification.domain.clone())
+                .entry(history_key(&notification.domain))
                 .or_default()
                 .push(Change::from(notification));
         }
@@ -57,14 +63,19 @@ impl PageData {
         let mut rows: Vec<DomainRow> = domains
             .into_iter()
             .map(|domain| {
-                let history = changes.remove(&domain.name).unwrap_or_default();
+                let history = changes
+                    .remove(&history_key(&domain.name))
+                    .unwrap_or_default();
                 DomainRow::new(domain, history, now)
             })
             .collect();
         rows.sort_by(|a, b| {
             let key = |row: &DomainRow| {
                 (
-                    row.expiry.tone == ExpiryTone::Never,
+                    matches!(
+                        row.expiry.tone,
+                        ExpiryTone::Never | ExpiryTone::Unpublished | ExpiryTone::Pending
+                    ),
                     row.domain.ext_expiry_at,
                 )
             };
