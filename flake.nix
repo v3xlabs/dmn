@@ -66,6 +66,7 @@
               inherit version;
               src = pkgs.lib.cleanSource ./app;
               cargoLock.lockFile = ./app/Cargo.lock;
+              buildFeatures = [ "ens-discovery" ];
 
               nativeBuildInputs = with pkgs; [
                 cmake
