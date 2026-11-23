@@ -88,6 +88,10 @@ pub const COPY: PreEscaped<&str> = PreEscaped(
     r#"<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.35"/><path d="M10.5 5.5V3.75A1.25 1.25 0 0 0 9.25 2.5H3.75A1.25 1.25 0 0 0 2.5 3.75V9.25A1.25 1.25 0 0 0 3.75 10.5H5.5" stroke="currentColor" stroke-width="1.35"/></svg>"#,
 );
 
+pub const CODE: PreEscaped<&str> = PreEscaped(
+    r#"<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5.5 4.5L2 8L5.5 11.5M10.5 4.5L14 8L10.5 11.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>"#,
+);
+
 pub const EXTERNAL: PreEscaped<&str> = PreEscaped(
     r#"<svg viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.25 2.75H11.25V8.75M11 3L3.25 10.75" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>"#,
 );

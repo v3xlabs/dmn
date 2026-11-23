@@ -159,9 +159,43 @@
     if (providerMenu && !providerMenu.parentElement.contains(event.target)) setProviderMenu(false);
   });
 
+  async function toggleRaw(button) {
+    const panel = button.closest(".detail-section").querySelector(".raw-panel");
+    const open = button.getAttribute("aria-expanded") !== "true";
+    button.setAttribute("aria-expanded", String(open));
+    panel.hidden = !open;
+    if (open) panel.scrollIntoView({ block: "nearest" });
+    if (!open || panel.dataset.loaded) return;
+    const text = panel.querySelector(".raw-text");
+    const failure = panel.querySelector('[role="alert"]');
+    const pending = setTimeout(() => (text.textContent = "Loading"), 150);
+    try {
+      const response = await fetch(
+        "/api/domains/" + encodeURIComponent(button.dataset.name) + "/registry/" + button.dataset.snapshot,
+      );
+      if (!response.ok) throw new Error(String(response.status));
+      const snapshot = await response.json();
+      let raw = snapshot.raw;
+      try {
+        if (snapshot.source === "rdap") raw = JSON.stringify(JSON.parse(raw), null, 2);
+      } catch (e) {}
+      panel.querySelector(".raw-server").textContent = snapshot.server;
+      text.textContent = raw || "Empty response";
+      failure.hidden = true;
+      panel.dataset.loaded = "true";
+    } catch (e) {
+      text.textContent = "";
+      failure.hidden = false;
+    } finally {
+      clearTimeout(pending);
+    }
+  }
+
   drawer.addEventListener("click", (event) => {
     const copyBtn = event.target.closest(".copy-btn");
     if (copyBtn) copy(copyBtn.dataset.copy, "Copied");
+    const rawBtn = event.target.closest(".raw-btn");
+    if (rawBtn) toggleRaw(rawBtn);
     if (event.target === drawer) drawer.close();
   });
   drawer.addEventListener("close", () => {

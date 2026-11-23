@@ -32,6 +32,7 @@ impl DomainRow {
                 }
                 div class="drawer-body" {
                     (self.render_lifecycle(now))
+                    (self.render_registry(now))
                     (self.render_registrar())
                     @if let Some(zone) = zone {
                         (zone.render())
@@ -169,7 +170,7 @@ impl CloudflareZone {
     }
 }
 
-fn kv(label: &str, value: &str, mono: bool) -> Markup {
+pub fn kv(label: &str, value: &str, mono: bool) -> Markup {
     html! {
         div class="kv" {
             dt class="kv-label" { (label) }

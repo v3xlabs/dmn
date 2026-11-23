@@ -10,6 +10,7 @@ use super::expiry::{relative_past, Expiry};
 use super::history::Change;
 use super::icons;
 use super::provider::ProviderKind;
+use super::registry::RegistryPanel;
 use super::zone::CloudflareZone;
 
 #[derive(Debug)]
@@ -17,12 +18,18 @@ pub struct DomainRow {
     pub domain: Domain,
     pub provider: ProviderKind,
     pub details: Details,
+    pub registry: Option<RegistryPanel>,
     pub expiry: Expiry,
     pub changes: Vec<Change>,
 }
 
 impl DomainRow {
-    pub fn new(domain: Domain, mut changes: Vec<Change>, now: DateTime<Utc>) -> Self {
+    pub fn new(
+        domain: Domain,
+        mut changes: Vec<Change>,
+        registry: Option<RegistryPanel>,
+        now: DateTime<Utc>,
+    ) -> Self {
         let provider: ProviderKind = domain
             .provider
             .parse()
@@ -34,6 +41,7 @@ impl DomainRow {
             domain,
             provider,
             details,
+            registry,
             expiry,
             changes,
         }

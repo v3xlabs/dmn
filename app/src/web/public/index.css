@@ -1147,6 +1147,51 @@ th[aria-sort="descending"] .sort-desc {
   word-break: break-word;
 }
 
+.kv-wide {
+  grid-column: 1 / -1;
+}
+
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -8px 0;
+}
+
+.registry-error {
+  margin-top: 12px;
+}
+
+/* A tap pins the tip on touch screens; once the panel is open it would cover the server line. */
+.raw-btn[aria-expanded="true"] > .tip {
+  opacity: 0;
+}
+
+.raw-panel {
+  margin-bottom: 16px;
+}
+
+.raw-server {
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+
+.raw-text {
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: var(--radius-chip);
+  background: var(--raised);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.raw-text:empty {
+  display: none;
+}
+
 .record-list {
   margin-top: 12px;
   border-top: 1px solid var(--hairline);

@@ -96,6 +96,13 @@ impl IndexState {
         .await
     }
 
+    pub async fn all(state: &AppState, kind: IndexKind) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>("SELECT * FROM index_state WHERE kind = ?")
+            .bind(kind)
+            .fetch_all(&state.database.pool)
+            .await
+    }
+
     pub async fn next_due_after(
         state: &AppState,
         now: DateTime<Utc>,

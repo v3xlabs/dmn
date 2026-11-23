@@ -1,7 +1,9 @@
 use chrono::{DateTime, Utc};
 use strum::{Display, EnumString};
 
-use crate::models::notification::Notification;
+use crate::models::{notification::Notification, record_change::LoggedChange};
+
+use super::registry::RegistryField;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumString)]
 #[strum(serialize_all = "lowercase")]
@@ -11,6 +13,7 @@ pub enum ChangeEvent {
     Change,
     /// A registrar dropped a name that `[manual]` still tracks.
     Handover,
+    Registry,
 }
 
 impl ChangeEvent {
@@ -20,6 +23,7 @@ impl ChangeEvent {
             Self::Delete => "Domain removed",
             Self::Change => "Record changed",
             Self::Handover => "Moved to manual list",
+            Self::Registry => "Registry changed",
         }
     }
 
@@ -27,7 +31,7 @@ impl ChangeEvent {
         match self {
             Self::Add => "Added",
             Self::Delete => "Removed",
-            Self::Change => "Changed",
+            Self::Change | Self::Registry => "Changed",
             Self::Handover => "Moved to manual",
         }
     }
@@ -90,6 +94,38 @@ impl From<&Notification> for Change {
                 .filter(|line| !line.trim().is_empty())
                 .map(ChangeLine::from)
                 .collect(),
+        }
+    }
+}
+
+impl Change {
+    pub fn registry(fields: &[LoggedChange]) -> Self {
+        let at = fields
+            .first()
+            .expect("a snapshot only gets change rows when at least one field changed")
+            .observed_at;
+        Self {
+            event: ChangeEvent::Registry,
+            at,
+            lines: fields.iter().map(ChangeLine::from).collect(),
+        }
+    }
+}
+
+/// A field this build does not know, from an older or newer schema, keeps its stored key and JSON values.
+impl From<&LoggedChange> for ChangeLine {
+    fn from(change: &LoggedChange) -> Self {
+        match change.field.parse::<RegistryField>() {
+            Ok(field) => Self::Field {
+                field: field.label().to_string(),
+                before: field.format(&change.before),
+                after: field.format(&change.after),
+            },
+            Err(_) => Self::Field {
+                field: change.field.clone(),
+                before: change.before.to_string(),
+                after: change.after.to_string(),
+            },
         }
     }
 }

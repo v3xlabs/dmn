@@ -164,6 +164,18 @@ impl Domain {
         Ok(())
     }
 
+    pub async fn is_tracked(
+        conn: &mut SqliteConnection,
+        name: &DomainName,
+    ) -> Result<bool, sqlx::Error> {
+        let stored: Vec<String> = sqlx::query_scalar("SELECT name FROM domains")
+            .fetch_all(conn)
+            .await?;
+        Ok(stored
+            .iter()
+            .any(|stored| stored.parse::<DomainName>().as_ref() == Ok(name)))
+    }
+
     pub async fn providers_by_name(
         conn: &mut SqliteConnection,
     ) -> Result<HashMap<DomainName, Vec<String>>, sqlx::Error> {

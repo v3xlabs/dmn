@@ -11,6 +11,7 @@ use super::expiry::{relative_past, ExpiryTone};
 use super::history::Change;
 use super::icons;
 use super::provider::ProviderKind;
+use super::registry::RegistryData;
 use super::row::DomainRow;
 use super::zone::CloudflareZone;
 
@@ -31,6 +32,7 @@ impl PageData {
         domains: Vec<Domain>,
         notifications: Vec<Notification>,
         zones: Vec<DnsDomain>,
+        registry: RegistryData,
         now: DateTime<Utc>,
     ) -> Self {
         // A registrar row and a manual row of one name share one history, so a registrar handover shows on the manual row.
@@ -39,6 +41,12 @@ impl PageData {
                 .map_or_else(|_| name.to_string(), |name| name.to_string())
         };
         let mut changes: HashMap<String, Vec<Change>> = HashMap::new();
+        for (name, registry_changes) in registry.changes {
+            changes
+                .entry(history_key(&name))
+                .or_default()
+                .extend(registry_changes);
+        }
         for notification in &notifications {
             changes
                 .entry(history_key(&notification.domain))
@@ -66,7 +74,8 @@ impl PageData {
                 let history = changes
                     .remove(&history_key(&domain.name))
                     .unwrap_or_default();
-                DomainRow::new(domain, history, now)
+                let panel = registry.panels.get(&history_key(&domain.name)).cloned();
+                DomainRow::new(domain, history, panel, now)
             })
             .collect();
         rows.sort_by(|a, b| {
