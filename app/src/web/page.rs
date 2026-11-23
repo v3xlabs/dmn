@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use std::sync::LazyLock;
 
 use chrono::{DateTime, Utc};
 use maud::{html, Markup, PreEscaped, DOCTYPE};
@@ -17,7 +18,13 @@ use super::zone::CloudflareZone;
 
 const THEME_INIT_SCRIPT: &str = r#"(function(){var s=null;try{s=localStorage.getItem("dmn-theme")}catch(e){}var d=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.classList.toggle("dark",s==="dark"||(s!=="light"&&d));})();"#;
 
-const FAVICON_DATA_URI: &str = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Crect width='24' height='24' rx='7' fill='%230f172a'/%3E%3Cpath d='M7 12H17M12 7V17' stroke='%23fff' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='12' cy='12' r='2.4' fill='%230f172a' stroke='%23fff' stroke-width='1.8'/%3E%3C/svg%3E";
+// `#` in the mark's colours would start the URL fragment and cut the data URI short.
+static FAVICON_DATA_URI: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        "data:image/svg+xml,{}",
+        include_str!("./public/dmn_mark.svg").replace('#', "%23")
+    )
+});
 
 pub struct PageData {
     rows: Vec<DomainRow>,
@@ -123,7 +130,7 @@ impl PageData {
                     meta name="viewport" content="width=device-width, initial-scale=1.0";
                     meta name="color-scheme" content="light dark";
                     title { "Domains | dmn" }
-                    link rel="icon" type="image/svg+xml" href=(FAVICON_DATA_URI);
+                    link rel="icon" type="image/svg+xml" href=(*FAVICON_DATA_URI);
                     script { (PreEscaped(THEME_INIT_SCRIPT)) }
                     style { (PreEscaped(include_str!("./dist/index.css"))) }
                 }
@@ -154,9 +161,8 @@ impl PageData {
     fn render_header(&self) -> Markup {
         html! {
             header class="topbar" {
-                a href="/" class="brand" {
-                    span class="brand-mark" { (icons::BRAND_MARK) }
-                    "dmn"
+                a href="/" class="brand" aria-label="dmn" {
+                    span aria-hidden="true" { (icons::LOCKUP) }
                 }
                 div class="topbar-actions" {
                     div class="anchor" {

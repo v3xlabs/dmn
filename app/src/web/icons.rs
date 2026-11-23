@@ -12,9 +12,7 @@ pub const ALL_PROVIDERS: PreEscaped<&str> = PreEscaped(
     r#"<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.25L13.75 5.25L8 8.25L2.25 5.25L8 2.25Z" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/><path d="M2.25 8.25L8 11.25L13.75 8.25M2.25 11.25L8 14.25L13.75 11.25" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>"#,
 );
 
-pub const BRAND_MARK: PreEscaped<&str> = PreEscaped(
-    r#"<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8H12.5M8 3.5V12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="8" r="2.1" fill="currentColor"/></svg>"#,
-);
+pub const LOCKUP: PreEscaped<&str> = PreEscaped(include_str!("./public/dmn_lockup.svg"));
 
 pub const CALENDAR: PreEscaped<&str> = PreEscaped(
     r#"<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M5 1.75V4M11 1.75V4M2 6.5H14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>"#,

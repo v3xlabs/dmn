@@ -173,25 +173,13 @@ html.dark .theme-dark {
 
 .brand {
   display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
 }
 
-.brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  background: var(--inverse-bg);
-  color: var(--inverse-fg);
-}
-
-.brand-mark svg {
-  width: 14px;
-  height: 14px;
+/* The lockup's mark is 64 of its 72 units tall, so 27px keeps the mark at the former 24px. */
+.brand svg {
+  display: block;
+  height: 27px;
+  width: auto;
 }
 
 .topbar-actions {
